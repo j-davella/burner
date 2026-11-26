@@ -28,7 +28,9 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - Layout: add images, DXF, SVG. Move, scale, rotate, crop (images), duplicate, delete
 - Images raster with M4 dynamic power, optional dithering, bidirectional, overscan
 - DXF: LINE, ARC, CIRCLE, LWPOLYLINE (bulges), POLYLINE, ELLIPSE, SPLINE. Uses `$INSUNITS`, assumes inches if unset. Explode blocks before export
-- Vectors burn after the raster, with per-object power / speed / passes
+- Per-contour operations on vectors: Cut, Score, Fill (hatch), Off. Click a contour to pick it, Shift-click to add. Each op has its own power / speed / passes
+- Burn order: raster, fill, score, then cuts smallest-first so holes and inner parts go before the outline
+- Touching DXF segments are joined into contours on import (SolidWorks exports rectangles as 4 LINEs)
 - Frame the job (optionally at low power), save the G-code
 
 ## Keys

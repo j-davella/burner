@@ -75,6 +75,12 @@ hr{border:0;border-top:1px solid var(--ln);margin:10px 0}
 .ov b{font-size:12px}.ov .pos{font-size:12px;color:var(--ok)}
 .ov button{padding:4px 0;font-size:11px;font-family:var(--mono)}
 .ov3{grid-template-columns:50px 46px repeat(3,1fr)}
+.opbtns button{flex:1;padding:6px 0;font-weight:700}
+.opbtns button[data-op=score]{color:#3ce0ff;border-color:#1f7f95}.opbtns button[data-op=cut]{color:#ff5a6a;border-color:#8f2430}
+.opbtns button[data-op=fill]{color:#2ee59d;border-color:#1c7a57}.opbtns button[data-op=off]{color:#8a96a6}
+.opgrid{display:grid;grid-template-columns:52px 1fr 1fr 1fr;gap:4px 6px;align-items:center;margin:6px 0}
+.opgrid input{width:100%}.opgrid .h{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
+.opgrid b.score{color:#3ce0ff}.opgrid b.cut{color:#ff5a6a}.opgrid b.fill{color:#2ee59d}
 /* settings modal */
 #settingsModal{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:10}
 #settingsModal.open{display:flex}
@@ -189,13 +195,19 @@ hr{border:0;border-top:1px solid var(--ln);margin:10px 0}
           </div>
           <div class="row"><label><input id="oLock" type="checkbox" checked> Lock aspect</label></div>
           <div id="vecProps" style="display:none">
-            <div class="row"><select id="vPreset" style="flex:1"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
-            <div class="grid2">
-              <label>Vector power %</label><input id="vP" type="number" step="1">
-              <label>Vector speed (mm/s)</label><input id="vF" type="number" step="1">
-              <label>Passes</label><input id="vN" type="number" step="1" min="1">
+            <div id="pathInfo" class="muted" style="margin:4px 0"></div>
+            <div class="row opbtns"><button data-op="cut">Cut</button><button data-op="score">Score</button><button data-op="fill">Fill</button><button data-op="off">Off</button></div>
+            <div class="row"><button id="pathAll">Select all contours</button><button id="pathNone">Clear selection</button></div>
+            <div class="opgrid">
+              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span>
+              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1">
+              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1">
+              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1">
             </div>
-            <div class="row"><input id="vPresetName" placeholder="Name, e.g. Poplar score lines" style="flex:1"><button id="vSaveAs">Save as</button></div>
+            <div class="row"><label>Fill line interval (mm)</label><input id="op_fill_interval" type="number" step="0.01" style="width:70px"></div>
+            <div class="row"><select id="vPreset" style="flex:1"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
+            <div class="row"><input id="vPresetName" placeholder="Name, e.g. 1/8 birch ply" style="flex:1"><button id="vSaveAs">Save as</button></div>
+            <div class="muted">Click a contour on the map to pick it, Shift-click to add more. Buttons apply to picked contours (or all if none). Order: fill, score, then cut with smallest contours first so parts drop last.</div>
           </div>
           <div class="row"><button id="cropBtn">Crop</button><button id="uncropBtn">Uncrop</button><button id="dupBtn">Duplicate</button><button id="toZeroBtn" title="Put the bottom-left corner on work zero">To W0</button><button id="delBtn" class="warnb">Delete</button></div>
         </div>
@@ -717,6 +729,8 @@ function addObj(o){
   o.rot=0; o.x=oW(o)/2+off; o.y=oH(o)/2+off;
   objs.push(o); sel=o; cropMode=false; layoutChanged();
 }
+function defaultOps(){ return { cut:{power:100,feed:5,passes:2}, score:{power:30,feed:20,passes:1}, fill:{power:40,feed:60,passes:1,interval:0.1} }; }
+const OPS=['cut','score','fill'];
 function deleteSel(){ if(!sel) return; objs.splice(objs.indexOf(sel),1); sel=null; cropMode=false; layoutChanged(); }
 
 // ----- loading -----
@@ -744,15 +758,43 @@ function addImage(f){
     im.src=URL.createObjectURL(f);
   });
 }
+// chain segments whose endpoints touch into single contours (SolidWorks DXF exports a rectangle as 4 LINEs)
+function joinPolys(ps, tol){
+  tol=tol||0.01;
+  const eq=(ax,ay,bx,by)=>Math.abs(ax-bx)<tol&&Math.abs(ay-by)<tol;
+  const rev=q=>{ const r=[]; for(let i=q.length-2;i>=0;i-=2) r.push(q[i],q[i+1]); return r; };
+  const left=ps.map(p=>Array.from(p)), out=[];
+  while(left.length){
+    let cur=left.pop(), grew=true;
+    while(grew){
+      grew=false; const n=cur.length;
+      if(n>=6 && eq(cur[0],cur[1],cur[n-2],cur[n-1])) break;
+      const ex=cur[n-2], ey=cur[n-1], sx=cur[0], sy=cur[1];
+      for(let i=0;i<left.length;i++){
+        const q=left[i], m=q.length;
+        if(eq(ex,ey,q[0],q[1])) cur=cur.concat(q.slice(2));
+        else if(eq(ex,ey,q[m-2],q[m-1])) cur=cur.concat(rev(q).slice(2));
+        else if(eq(sx,sy,q[m-2],q[m-1])) cur=q.concat(cur.slice(2));
+        else if(eq(sx,sy,q[0],q[1])) cur=rev(q).concat(cur.slice(2));
+        else continue;
+        left.splice(i,1); grew=true; break;
+      }
+    }
+    out.push(cur);
+  }
+  return out;
+}
 function addVec(name, polys){
-  polys = polys.filter(p=>p.length>=4);
+  const n0=polys.length;
+  polys = joinPolys(polys.filter(p=>p.length>=4));
+  if(polys.length<n0) log('Joined '+n0+' pieces into '+polys.length+' contours','dim');
   if(!polys.length) throw new Error('no usable geometry found');
   let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity, pts=0;
   for(const p of polys) for(let i=0;i<p.length;i+=2){ x0=Math.min(x0,p[i]); x1=Math.max(x1,p[i]); y0=Math.min(y0,p[i+1]); y1=Math.max(y1,p[i+1]); pts++; }
   for(const p of polys) for(let i=0;i<p.length;i+=2){ p[i]-=x0; p[i+1]-=y0; }
   const w=Math.max(x1-x0,0.01), h=Math.max(y1-y0,0.01);
-  addObj({type:'vec', name, polys, cx:0, cy:0, cw:w, ch:h, sx:1, sy:1, power:100, feed:8, passes:1});
-  log('Vector '+name+': '+polys.length+' paths, '+pts+' pts, '+(w/MM).toFixed(3)+' x '+(h/MM).toFixed(3)+' in. Default 100% / 8 mm/s / 1 pass, dial it in on scrap.','dim');
+  addObj({type:'vec', name, polys, cx:0, cy:0, cw:w, ch:h, sx:1, sy:1, pathOp:polys.map(()=>'score'), psel:new Set(), set:defaultOps()});
+  log('Vector '+name+': '+polys.length+' paths, '+pts+' pts, '+(w/MM).toFixed(3)+' x '+(h/MM).toFixed(3)+' in. All contours start as Score. Default power/speed are placeholders, dial them in on scrap.','dim');
 }
 
 // Douglas-Peucker on flat [x,y,...]
@@ -916,26 +958,47 @@ function syncProps(){
   $('cropBtn').disabled = !im; $('uncropBtn').disabled = !im;
   $('cropBtn').textContent = cropMode ? 'Done cropping' : 'Crop';
   $('vecProps').style.display = im ? 'none' : '';
-  if(!im){ set('vP',sel.power); set('vF',sel.feed); set('vN',sel.passes); fillPresetSel('vPreset','vector', sel.preset||''); }
+  if(!im){
+    for(const op of OPS) for(const k of ['power','feed','passes']) set('op_'+op+'_'+k, sel.set[op][k]);
+    set('op_fill_interval', sel.set.fill.interval);
+    const cnt={cut:0,score:0,fill:0,off:0}; sel.pathOp.forEach(o=>cnt[o]++);
+    $('pathInfo').innerHTML = '<b style="color:var(--tx)">'+sel.psel.size+'</b> of '+sel.polys.length+' contours picked &middot; <span style="color:#ff5a6a">cut '+cnt.cut+'</span> &middot; <span style="color:#3ce0ff">score '+cnt.score+'</span> &middot; <span style="color:#2ee59d">fill '+cnt.fill+'</span> &middot; off '+cnt.off;
+    fillPresetSel('vPreset','vector', sel.preset||'');
+  }
 }
 const numIn=(id,fn)=>$(id).addEventListener('change',()=>{ const v=parseFloat($(id).value); if(sel && isFinite(v)){ fn(v); layoutChanged(); } });
 numIn('oX',v=>sel.x=v*MM); numIn('oY',v=>sel.y=v*MM); numIn('oR',v=>sel.rot=v);
 numIn('oW',v=>{ if(v<=0) return; const f=v*MM/oW(sel); sel.sx*=f; if($('oLock').checked) sel.sy*=f; });
 numIn('oH',v=>{ if(v<=0) return; const f=v*MM/oH(sel); sel.sy*=f; if($('oLock').checked) sel.sx*=f; });
-numIn('vP',v=>{ sel.power=Math.max(0,Math.min(100,v)); sel.preset=''; });
-numIn('vF',v=>{ sel.feed=Math.max(0.1,v); sel.preset=''; });
-numIn('vN',v=>{ sel.passes=Math.max(1,Math.round(v)); sel.preset=''; });
+for(const op of OPS){
+  numIn('op_'+op+'_power',v=>{ if(sel.set){ sel.set[op].power=Math.max(0,Math.min(100,v)); sel.preset=''; } });
+  numIn('op_'+op+'_feed',v=>{ if(sel.set){ sel.set[op].feed=Math.max(0.1,v); sel.preset=''; } });
+  numIn('op_'+op+'_passes',v=>{ if(sel.set){ sel.set[op].passes=Math.max(1,Math.round(v)); sel.preset=''; } });
+}
+numIn('op_fill_interval',v=>{ if(sel.set){ sel.set.fill.interval=Math.max(0.02,v); sel.preset=''; } });
+document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{
+  if(!sel||sel.type!=='vec') return;
+  const op=b.dataset.op, idx = sel.psel.size ? [...sel.psel] : sel.polys.map((_,i)=>i);
+  let open=0;
+  for(const i of idx){ if(op==='fill' && !isClosed(sel.polys[i])) { open++; continue; } sel.pathOp[i]=op; }
+  if(open) log(open+' open contour'+(open>1?'s':'')+' skipped for Fill (fill needs closed shapes)','warn');
+  layoutChanged();
+});
+$('pathAll').onclick=()=>{ if(sel&&sel.type==='vec'){ sel.psel=new Set(sel.polys.map((_,i)=>i)); syncProps(); dirty=true; } };
+$('pathNone').onclick=()=>{ if(sel&&sel.type==='vec'){ sel.psel=new Set(); syncProps(); dirty=true; } };
+function isClosed(p){ const n=p.length; return n>=6 && Math.hypot(p[0]-p[n-2],p[1]-p[n-1]) < 0.05; }
 $('cropBtn').onclick=()=>{ if(sel&&sel.type==='img'){ cropMode=!cropMode; syncProps(); dirty=true; } };
 $('uncropBtn').onclick=()=>{
   if(!sel||sel.type!=='img') return; const o=sel;
   const dx=(o.iw/2-(o.cx+o.cw/2))*o.sx, dy=-(o.ih/2-(o.cy+o.ch/2))*o.sy;
   [o.x,o.y]=toWorld(o,dx,dy); o.cx=0; o.cy=0; o.cw=o.iw; o.ch=o.ih; layoutChanged();
 };
-$('dupBtn').onclick=()=>{ if(!sel) return; const c={...sel, x:sel.x+oW(sel)+0.125*MM}; objs.push(c); sel=c; cropMode=false; layoutChanged(); };
+$('dupBtn').onclick=()=>{ if(!sel) return; const c={...sel, x:sel.x+oW(sel)+0.125*MM}; if(sel.type==='vec'){ c.pathOp=sel.pathOp.slice(); c.psel=new Set(); c.set=JSON.parse(JSON.stringify(sel.set)); } objs.push(c); sel=c; cropMode=false; layoutChanged(); };
 $('toZeroBtn').onclick=()=>{ if(!sel) return; const b=layoutBounds([sel]); sel.x-=b.x0; sel.y-=b.y0; layoutChanged(); };
 $('delBtn').onclick=deleteSel;
 
 // ----- drawing on the map -----
+const OPCOL={cut:'#ff3b4e',score:'#3ce0ff',fill:'#2ee59d',off:'rgba(140,150,165,0.35)'};
 function drawObjs(g){
   const s=vw.sc, ox=st.wco[0], oy=st.wco[1];
   for(const o of objs){
@@ -945,9 +1008,20 @@ function drawObjs(g){
       if(isSel && cropMode){ g.globalAlpha=0.25; g.drawImage(o.img,0,0,o.iw,o.ih,(-W/2-o.cx*o.sx)*s,(-H/2-o.cy*o.sy)*s,o.iw*o.sx*s,o.ih*o.sy*s); }
       g.globalAlpha=0.9; g.drawImage(o.img,o.cx,o.cy,o.cw,o.ch,-W/2*s,-H/2*s,W*s,H*s); g.globalAlpha=1;
     } else {
-      g.strokeStyle='#4fd1ff'; g.lineWidth=1.2; g.beginPath();
-      for(const p of o.polys){ for(let i=0;i<p.length;i+=2){ const X=(p[i]-o.cw/2)*o.sx*s, Y=-(p[i+1]-o.ch/2)*o.sy*s; i?g.lineTo(X,Y):g.moveTo(X,Y); } }
-      g.stroke();
+      const trace=p=>{ for(let i=0;i<p.length;i+=2){ const X=(p[i]-o.cw/2)*o.sx*s, Y=-(p[i+1]-o.ch/2)*o.sy*s; i?g.lineTo(X,Y):g.moveTo(X,Y); } };
+      g.beginPath(); let anyFill=false;
+      o.polys.forEach((p,pi)=>{ if(o.pathOp[pi]==='fill'){ trace(p); g.closePath(); anyFill=true; } });
+      if(anyFill){ g.fillStyle='rgba(46,229,157,0.22)'; g.fill('evenodd'); }
+      for(const op of ['off','fill','score','cut']){
+        g.strokeStyle=OPCOL[op]; g.lineWidth=op==='cut'?1.8:1.3; g.beginPath(); let any=false;
+        o.polys.forEach((p,pi)=>{ if(o.pathOp[pi]===op){ trace(p); any=true; } });
+        if(any) g.stroke();
+      }
+      if(isSel && o.psel.size){
+        g.save(); g.shadowColor='#fff'; g.shadowBlur=8; g.strokeStyle='#ffffff'; g.lineWidth=3; g.setLineDash([6,4]); g.beginPath();
+        for(const pi of o.psel) trace(o.polys[pi]);
+        g.stroke(); g.restore();
+      }
     }
     g.strokeStyle = isSel ? (cropMode?'#f5c542':'#ff8a3d') : 'rgba(255,255,255,0.25)'; g.lineWidth=1; g.setLineDash(isSel?[]:[4,3]);
     g.strokeRect(-W/2*s,-H/2*s,W*s,H*s); g.setLineDash([]);
@@ -964,6 +1038,21 @@ function drawObjs(g){
 }
 
 // ----- generate the whole layout -----
+// even-odd scanline hatch of closed polygons -> [x0,x1,y] segments, alternating direction
+function hatch(polys, interval){
+  const E=[]; let y0=Infinity, y1=-Infinity;
+  for(const p of polys){ const n=p.length/2; for(let i=0;i<n;i++){ const j=(i+1)%n, ax=p[i*2], ay=p[i*2+1], bx=p[j*2], by=p[j*2+1]; if(ay!==by) E.push([ax,ay,bx,by]); y0=Math.min(y0,ay); y1=Math.max(y1,ay); } }
+  const out=[]; let fwd=true;
+  for(let y=y0+interval/2; y<y1; y+=interval){
+    const xs=[]; for(const [ax,ay,bx,by] of E) if((ay<=y&&by>y)||(by<=y&&ay>y)) xs.push(ax+(y-ay)*(bx-ax)/(by-ay));
+    xs.sort((a,b)=>a-b);
+    const row=[]; for(let i=0;i+1<xs.length;i+=2) if(xs[i+1]-xs[i]>1e-6) row.push([xs[i],xs[i+1],y]);
+    if(!row.length) continue;
+    if(fwd) out.push(...row); else for(let i=row.length-1;i>=0;i--) out.push([row[i][1],row[i][0],y]);
+    fwd=!fwd;
+  }
+  return out;
+}
 function nnOrder(polys){
   const left=polys.slice(), out=[]; let cx=0, cy=0;
   while(left.length){
@@ -1008,16 +1097,33 @@ function generateLayout(){
     for(let i=0;i<rg.length;i++) lines.push(rg[i]);
     pitch=p;
   } else $('thumb').style.display='none';
+  // vectors: fill -> score -> cut (cuts smallest-first so inner parts/holes go before the outline)
+  const world=o=>o.polys.map(pl=>{ const r=[]; for(let i=0;i<pl.length;i+=2){ const [x,y]=toWorld(o,(pl[i]-o.cw/2)*o.sx,(pl[i+1]-o.ch/2)*o.sy); r.push(x,y); } return r; });
+  const W_ = new Map(vecs.map(o=>[o,world(o)]));
+  const pick=(o,op)=>W_.get(o).filter((_,i)=>o.pathOp[i]===op);
+  const opHead=(o,op)=>{ const st_=o.set[op], S=Math.round(smax()*st_.power/100), F=st_.feed*60; lines.push('; '+op+' '+o.name+' S'+S+' F'+fmt(F)+' x'+st_.passes, 'M4 S'+S, 'G1 F'+fmt(F)); return st_; };
+  const emit=p=>{ lines.push('G0 X'+fmt(p[0])+' Y'+fmt(p[1])); for(let i=2;i<p.length;i+=2) lines.push('G1 X'+fmt(p[i])+' Y'+fmt(p[i+1])); };
   for(const o of vecs){
-    const S=Math.round(smax()*o.power/100), F=o.feed*60;
-    const polys=nnOrder(o.polys.map(pl=>{ const r=[]; for(let i=0;i<pl.length;i+=2){ const [x,y]=toWorld(o,(pl[i]-o.cw/2)*o.sx,(pl[i+1]-o.ch/2)*o.sy); r.push(x,y); } return r; }));
-    lines.push('; vector '+o.name+' S'+S+' F'+fmt(F)+' x'+o.passes, 'M4 S'+S, 'G1 F'+fmt(F));
-    for(let k=0;k<o.passes;k++) for(const p of polys){
-      lines.push('G0 X'+fmt(p[0])+' Y'+fmt(p[1]));
-      for(let i=2;i<p.length;i+=2) lines.push('G1 X'+fmt(p[i])+' Y'+fmt(p[i+1]));
-    }
+    const polys=pick(o,'fill'); if(!polys.length) continue;
+    const st_=opHead(o,'fill'), segs=hatch(polys, st_.interval);
+    for(let k=0;k<st_.passes;k++) for(const [x0,x1,y] of segs){ lines.push('G0 X'+fmt(x0)+' Y'+fmt(y)); lines.push('G1 X'+fmt(x1)); }
     lines.push('M5 S0');
   }
+  for(const o of vecs){
+    const polys=nnOrder(pick(o,'score')); if(!polys.length) continue;
+    const st_=opHead(o,'score');
+    for(let k=0;k<st_.passes;k++) for(const p of polys) emit(p);
+    lines.push('M5 S0');
+  }
+  const cuts=[];
+  for(const o of vecs) for(const p of pick(o,'cut')){ let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity; for(let i=0;i<p.length;i+=2){ a=Math.min(a,p[i]); c=Math.max(c,p[i]); b=Math.min(b,p[i+1]); d=Math.max(d,p[i+1]); } cuts.push({o,p,area:(c-a)*(d-b)}); }
+  cuts.sort((u,v)=>u.area-v.area);
+  let lastO=null;
+  for(const c of cuts){
+    if(c.o!==lastO){ if(lastO) lines.push('M5 S0'); opHead(c.o,'cut'); lastO=c.o; }
+    for(let k=0;k<c.o.set.cut.passes;k++) emit(c.p);
+  }
+  if(lastO) lines.push('M5 S0');
   lines.push('M5 S0','G0 X0 Y0');
   setJob(lines, objs.length===1?objs[0].name:objs.length+' objects', pitch, true);
   return true;
@@ -1040,10 +1146,12 @@ function fillPresetSel(id,type,pick){
   presets.filter(p=>p.type===type).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; el.appendChild(o); });
   el.value=[...el.options].some(o=>o.value===cur)?cur:'';
 }
+function vecSet(v){ return v.cut ? v : { cut:{power:100,feed:5,passes:2}, score:{power:v.power,feed:v.feed,passes:v.passes}, fill:{power:40,feed:60,passes:1,interval:0.1} }; }
+function vecDesc(v){ v=vecSet(v); return 'cut '+v.cut.power+'%/'+v.cut.feed+'mm/s x'+v.cut.passes+', score '+v.score.power+'%/'+v.score.feed+', fill '+v.fill.power+'%/'+v.fill.feed+' @'+v.fill.interval+'mm'; }
 function rasterDesc(v){ return v.rLpi+' lpi, '+v.rFeedS+' mm/s, '+v.rPmin+'-'+v.rPmax+'%'+(v.rDither?', dithered':'')+(v.rInvert?', inverted':''); }
 function listPresets(){
   fillPresetSel('rPreset','raster'); fillPresetSel('vPreset','vector');
-  $('presetList').innerHTML = presets.length ? presets.map(p=>'<div><b style="color:var(--tx)">'+p.name.replace(/</g,'&lt;')+'</b> <span>('+p.type+': '+(p.type==='raster'?rasterDesc(p.v):p.v.power+'%, '+p.v.feed+' mm/s, '+p.v.passes+' pass'+(p.v.passes>1?'es':''))+')</span></div>').join('') : 'None saved yet.';
+  $('presetList').innerHTML = presets.length ? presets.map(p=>'<div><b style="color:var(--tx)">'+p.name.replace(/</g,'&lt;')+'</b> <span>('+p.type+': '+(p.type==='raster'?rasterDesc(p.v):vecDesc(p.v))+')</span></div>').join('') : 'None saved yet.';
 }
 function upsert(type,name,v){
   const i=presets.findIndex(p=>p.type===type&&p.name===name);
@@ -1064,11 +1172,11 @@ $('rPresetDel').onclick=()=>{ const n=$('rPreset').value; if(!n) return; presets
 $('vSaveAs').onclick=()=>{
   if(!sel||sel.type!=='vec') return;
   const name=$('vPresetName').value.trim(); if(!name){ log('Type a name for the preset first','warn'); $('vPresetName').focus(); return; }
-  upsert('vector',name,{power:sel.power,feed:sel.feed,passes:sel.passes}); fillPresetSel('vPreset','vector',name); $('vPresetName').value='';
+  upsert('vector',name,JSON.parse(JSON.stringify(sel.set))); fillPresetSel('vPreset','vector',name); $('vPresetName').value='';
 };
 $('vPreset').onchange=()=>{
   const p=presets.find(p=>p.type==='vector'&&p.name===$('vPreset').value); if(!p||!sel||sel.type!=='vec') return;
-  sel.power=p.v.power; sel.feed=p.v.feed; sel.passes=p.v.passes; sel.preset=p.name; layoutChanged();
+  sel.set=JSON.parse(JSON.stringify(vecSet(p.v))); sel.preset=p.name; layoutChanged();
 };
 $('vPresetDel').onclick=()=>{ const n=$('vPreset').value; if(!n) return; presets=presets.filter(p=>!(p.type==='vector'&&p.name===n)); savePresets(); };
 $('presetExport').onclick=()=>{
@@ -1291,8 +1399,14 @@ function hitTest(p){
       for(const [a,b] of [[-1,-1],[1,-1],[1,1],[-1,1]]) if(Math.hypot(lx-a*W/2, ly-b*H/2)<tol) return {o,kind:'scale',ax:a,ay:b};
     }
   }
-  for(let i=objs.length-1;i>=0;i--){ const o=objs[i], [lx,ly]=toLocal(o,p.wx,p.wy); if(Math.abs(lx)<=oW(o)/2 && Math.abs(ly)<=oH(o)/2) return {o,kind:'move'}; }
+  for(let i=objs.length-1;i>=0;i--){ const o=objs[i], [lx,ly]=toLocal(o,p.wx,p.wy), pad=o.type==='vec'?8/vw.sc:0; if(Math.abs(lx)<=oW(o)/2+pad && Math.abs(ly)<=oH(o)/2+pad) return {o,kind:'move'}; }
   return null;
+}
+function pathAt(o,p){
+  const [lx,ly]=toLocal(o,p.wx,p.wy), X=lx/o.sx+o.cw/2, Y=ly/o.sy+o.ch/2, tol=7/vw.sc/Math.min(o.sx,o.sy);
+  let best=-1, bd=tol;
+  o.polys.forEach((q,pi)=>{ for(let i=0;i+3<q.length;i+=2){ const ax=q[i],ay=q[i+1],bx=q[i+2],by=q[i+3],dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy; let t=L?((X-ax)*dx+(Y-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); const d=Math.hypot(X-ax-t*dx,Y-ay-t*dy); if(d<bd){bd=d;best=pi;} } });
+  return best;
 }
 const CURSOR={move:'move',scale:'nwse-resize',rot:'grab',crop:'col-resize'};
 cv.addEventListener('wheel', e=>{
@@ -1305,6 +1419,11 @@ cv.addEventListener('mousedown', e=>{
   const h = e.button===0 ? hitTest(p) : null;
   if(h){
     if(sel!==h.o){ sel=h.o; cropMode=false; }
+    if(h.kind==='move' && h.o.type==='vec'){
+      const pi=pathAt(h.o,p);
+      if(pi>=0){ if(e.shiftKey){ h.o.psel.has(pi)?h.o.psel.delete(pi):h.o.psel.add(pi); } else if(!h.o.psel.has(pi)) h.o.psel=new Set([pi]); }
+      else if(!e.shiftKey) h.o.psel=new Set();
+    }
     drag={...h, p0:p, x0:h.o.x, y0:h.o.y};
     if(h.kind==='scale'){ const W=oW(h.o), H=oH(h.o); drag.A=toWorld(h.o,-h.ax*W/2,-h.ay*H/2); drag.W0=W; drag.H0=H; drag.sx0=h.o.sx; drag.sy0=h.o.sy; }
     syncProps(); dirty=true;
