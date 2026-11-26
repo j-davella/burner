@@ -69,6 +69,9 @@ progress::-moz-progress-bar{background:linear-gradient(90deg,var(--acc),var(--ac
 .muted{color:var(--dim);font-size:11px}
 #thumb{max-width:100%;max-height:140px;object-fit:contain;image-rendering:pixelated;background:#fff;display:none;margin-top:6px;border-radius:6px}
 hr{border:0;border-top:1px solid var(--ln);margin:10px 0}
+.timer{display:flex;align-items:baseline;justify-content:space-between;margin:10px 0 4px}
+.timer b{font:800 28px var(--mono);color:#fff;text-shadow:0 0 14px rgba(255,122,26,.45);letter-spacing:1px}
+.timer span{font:600 12px var(--mono);color:var(--dim);text-align:right}
 .runbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .runbar button{padding:10px 0;font-size:14px}
 .ov{display:grid;grid-template-columns:50px 46px repeat(5,1fr);gap:4px;align-items:center;margin:4px 0}
@@ -143,7 +146,8 @@ hr{border:0;border-top:1px solid var(--ln);margin:10px 0}
         <button id="startBtn" class="pri">&#9654; Start</button>
         <button id="pauseBtn" class="warnb">Pause</button>
       </div>
-      <div style="margin-top:8px"><progress id="prog" value="0" max="1"></progress></div>
+      <div class="timer"><b id="tLeft">--:--</b><span id="tSub">no job</span></div>
+      <div><progress id="prog" value="0" max="1"></progress></div>
       <div id="progTxt" class="muted" style="font-family:var(--mono)">-</div>
       <div class="row"><label><input id="haltErr" type="checkbox" checked> Pause on G-code error</label></div>
       <hr>
@@ -582,7 +586,7 @@ function onLine(l){
   if(l[0]==='<'){ onStatus(Core.parseStatus(l)); return; }
   if(l==='ok' || l.startsWith('error')){
     const it = inflight.shift();
-    if(it){ bufUsed -= it.len; if(bufUsed<0) bufUsed=0; if(it.jobIdx>=0){ job.acked = it.jobIdx+1;
+    if(it){ bufUsed -= it.len; if(bufUsed<0) bufUsed=0; if(it.jobIdx>=0){ job.acked = it.jobIdx+1; if(job.lt) job.estDoneAdj += job.lt[it.jobIdx]*100/((st.ov&&st.ov[0])||100);
       if(job.sections){ const sc=job.sections.sec[it.jobIdx]; if(sc!==job.lastSec){ if(job.lastSec>=0 && st.ov && st.ov[2]!==100){ rt(0x99); st.ov[2]=100; log('Next operation: power back to its job setting','dim'); } job.lastSec=sc; } } } }
     if(l.startsWith('error')){
       const code = +l.split(':')[1];
@@ -617,6 +621,7 @@ function onStatus(r){
   else if(r.wpos){ st.w = r.wpos; st.m = r.wpos.map((v,i)=>v+(st.wco[i]||0)); }
   if(r.f!==undefined) st.f=r.f; if(r.s!==undefined) st.s=r.s;
   if(r.ov) st.ov = r.ov;
+  if(job.running){ const now=performance.now(); if(st.state==='Hold'){ if(!job.holdStart) job.holdStart=now; } else if(job.holdStart){ job.holdMs+=now-job.holdStart; job.holdStart=0; } }
   if(r.bf && inflight.length===0 && !job.running && r.bf[1]>16) rxSize = r.bf[1]-1;
   st.known = true;
   updateUI(); dirty = true;
@@ -640,7 +645,7 @@ function smax(){ return +(settings[30]||1000); }
 const job = { lines:[], idx:0, acked:0, running:false, paused:false, name:'', prev:null, t0:0, raster:null };
 
 function clearJob(){
-  job.lines=[]; job.prev=null; job.name=''; job.idx=0; job.acked=0; job.fromLayout=false;
+  job.lines=[]; job.prev=null; job.name=''; job.idx=0; job.acked=0; job.fromLayout=false; job.estTotal=undefined; job.cum=null; job.doneS=0;
   $('jobInfo').textContent='No job loaded.'; staticKey=''; dirty=true; updateUI();
 }
 // per-line operation section and its max S, so power can be shown/set as absolute % of the laser
@@ -672,16 +677,41 @@ function setPowerAbs(target){
   want=Math.min(want, Math.floor(SM/m*100), 200);         // never ask for more than $30
   sendSpindleOv(want);
 }
+// per-line time estimate (s): distance/feed, plus a stop-and-go penalty (v/a) on sharp direction changes
+function estLineTimes(lines){
+  const t=new Float32Array(lines.length);
+  const acc=Math.max(10, Math.min(+(settings[120]||500), +(settings[121]||500)));
+  const rapid=Math.max(100, Math.min(+(settings[110]||6000), +(settings[111]||6000)))/60;
+  let x=0,y=0,mode=0,abs=true,sc=1,F=1000,pdx=0,pdy=0;
+  const re=/([GXYF])([-+]?(?:\d+\.?\d*|\.\d+))/g;
+  for(let i=0;i<lines.length;i++){
+    const L=lines[i]; if(!L||L[0]==='$'||L[0]===';') continue;
+    let nx=null, ny=null, m, skip=false; re.lastIndex=0;
+    while((m=re.exec(L))){ const k=m[1], v=+m[2];
+      if(k==='G'){ if(v<=3) mode=v; else if(v===90) abs=true; else if(v===91) abs=false; else if(v===20) sc=MM; else if(v===21) sc=1; else if(v===53||v===10||v===92||v===28||v===4) skip=true; }
+      else if(k==='X') nx=v; else if(k==='Y') ny=v; else if(k==='F') F=Math.max(1,v*sc); }
+    if(skip||(nx===null&&ny===null)) continue;
+    const tx = nx===null? x : (abs? nx*sc : x+nx*sc), ty = ny===null? y : (abs? ny*sc : y+ny*sc);
+    const dx=tx-x, dy=ty-y, d=Math.hypot(dx,dy); x=tx; y=ty;
+    if(d<1e-6) continue;
+    const v = mode===0 ? rapid : Math.min(F/60, rapid), ux=dx/d, uy=dy/d;
+    let ti = d/v;
+    if(ux*pdx+uy*pdy < 0.5) ti += v/acc;          // >60 deg turn or reversal: decel + accel
+    t[i]=ti; pdx=ux; pdy=uy;
+  }
+  return t;
+}
 function setJob(lines, name, pitch, fromLayout){
+  { const lt=estLineTimes(lines), cum=new Float64Array(lines.length+1); for(let i=0;i<lines.length;i++) cum[i+1]=cum[i]+lt[i]; job.lt=lt; job.cum=cum; job.estTotal=cum[lines.length]; }
   job.sections = buildSections(lines); job.lastSec = -1;
-  job.lines = lines; job.name = name; job.idx = 0; job.acked = 0; job.running=false; job.paused=false;
+  job.lines = lines; job.name = name; job.idx = 0; job.acked = 0; job.running=false; job.paused=false; job.doneS=0;
   job.fromLayout = !!fromLayout; layoutStale = false;
   job.prev = Core.parseGcode(lines, smax());
   job.pitch = pitch || 0;
   const b = job.prev.burn || job.prev.all;
   $('jobInfo').innerHTML = '<b>'+name+'</b><br>'+lines.length.toLocaleString()+' lines'+
     (b?', '+((b.maxX-b.minX)/MM).toFixed(3)+' x '+((b.maxY-b.minY)/MM).toFixed(3)+' in burn area, from ('+(b.minX/MM).toFixed(3)+', '+(b.minY/MM).toFixed(3)+')':'')+
-    '<br>rough time ~'+Math.ceil(job.prev.estMin)+' min (ignores accel)';
+    '<br>estimated time '+fmtT(job.estTotal);
   if(lines.length>400000) log('Big job ('+lines.length.toLocaleString()+' lines). Preview may be slow.','warn');
   doneSeg = 0; staticKey=''; if(!fromLayout) fitView(); dirty=true; updateUI();
 }
@@ -693,7 +723,7 @@ function startJob(){
   if(!job.lines.length){ log('No job loaded','warn'); return; }
   if(st.state!=='Idle'){ log('Controller must be Idle to start (now '+st.state+')','warn'); return; }
   if(settings[32]==='0'){ log('Refusing to start: $32=0 (laser mode off). Laser would stay on during rapids. Send $32=1.','bad'); return; }
-  job.idx=0; job.acked=0; job.running=true; job.paused=false; job.t0=performance.now();
+  job.idx=0; job.acked=0; job.running=true; job.paused=false; job.t0=performance.now(); job.holdMs=0; job.holdStart=0; job.estDoneAdj=0; job.doneS=0;
   doneSeg=0; clearDone(); log('Job started: '+job.name,'acc');
   pump(); updateUI();
 }
@@ -705,7 +735,7 @@ function pauseJob(){
 }
 function jobDone(){
   job.running=false; job.paused=false;
-  const s = (performance.now()-job.t0)/1000;
+  const s = runSeconds(); job.doneS=s;
   log('Job done in '+Math.floor(s/60)+'m '+Math.round(s%60)+'s','acc'); updateUI();
 }
 function stopAll(){
@@ -1326,13 +1356,26 @@ function updateUI(){
   $('layoutNote').style.display = layoutStale && objs.length ? '' : 'none';
   const n=job.lines.length||1;
   $('prog').value = job.acked/n;
-  if(job.running){
-    const el=(performance.now()-job.t0)/1000, fr=job.acked/n;
-    const eta = fr>0.01 ? el/fr - el : 0;
-    $('progTxt').textContent = job.acked.toLocaleString()+' / '+job.lines.length.toLocaleString()+' ('+(fr*100).toFixed(1)+'%)  '+fmtT(el)+' elapsed'+(eta?', ~'+fmtT(eta)+' left':'')+(job.paused?'  PAUSED':'');
-  } else $('progTxt').textContent = job.lines.length ? (job.acked? job.acked.toLocaleString()+' / '+job.lines.length.toLocaleString()+' acked':'Ready') : '-';
+  if(job.running && job.cum){
+    const el=runSeconds(), estRem=job.estTotal-job.cum[Math.min(job.acked,job.lines.length)];
+    // learn how far off the estimate is (override-adjusted), once there's enough data
+    const k = (el>8 && job.estDoneAdj>2) ? Math.max(0.3,Math.min(5, el/job.estDoneAdj)) : 1;
+    const rem = estRem*100/((st.ov&&st.ov[0])||100)*k;
+    const done = new Date(Date.now()+rem*1000);
+    const held = st.state==='Hold';
+    $('prog').value = job.estTotal ? 1-estRem/job.estTotal : job.acked/n;
+    $('tLeft').textContent = fmtT(rem);
+    $('tSub').innerHTML = (held?'<span style="color:var(--warn)">PAUSED</span> &middot; ':'')+'left &middot; done ~'+done.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'<br>'+fmtT(el)+' elapsed &middot; est total '+fmtT(el+rem);
+    $('progTxt').textContent = job.acked.toLocaleString()+' / '+job.lines.length.toLocaleString()+' lines ('+(100*$('prog').value).toFixed(1)+'%)';
+  } else {
+    $('progTxt').textContent = job.lines.length ? (job.acked? job.acked.toLocaleString()+' / '+job.lines.length.toLocaleString()+' acked':'Ready') : '-';
+    if(job.doneS && !job.running && job.acked>=job.lines.length){ $('tLeft').textContent=fmtT(job.doneS); $('tSub').innerHTML='done &middot; estimate was '+fmtT(job.estTotal); }
+    else if(job.lines.length && job.estTotal!==undefined){ $('tLeft').textContent=fmtT(job.estTotal); $('tSub').textContent=layoutStale?'estimate (regenerate for current layout)':'estimated'; }
+    else { $('tLeft').textContent='--:--'; $('tSub').textContent='no job'; }
+  }
 }
-function fmtT(s){ s=Math.round(s); return Math.floor(s/60)+'m'+String(s%60).padStart(2,'0')+'s'; }
+function fmtT(s){ s=Math.max(0,Math.round(s)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=String(s%60).padStart(2,'0'); return h? h+':'+String(m).padStart(2,'0')+':'+x : m+':'+x; }
+function runSeconds(){ if(!job.t0) return 0; const now=performance.now(); return (now-job.t0-job.holdMs-(job.holdStart?now-job.holdStart:0))/1000; }
 setInterval(()=>{ if(job.running) updateUI(); }, 500);
 
 // ---------- map ----------

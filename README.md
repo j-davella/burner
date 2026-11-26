@@ -22,6 +22,7 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - Character-counted streaming (no buffer overruns / lockups)
 - STOP / Esc = feed hold + soft reset. Kills the job and the laser, no reboot
 - Pause/resume, live speed / rapid overrides mid-burn
+- Time remaining + finish clock: estimated from move lengths, feeds and your accel ($120/$121), corrected live against the actual burn rate, follows the speed override, pauses don't count
 - Live power control in absolute % of the laser (capped at 100%). A tweak lasts for the current operation, then the next op runs at its own setting
 - Speeds in mm/s. Settings page: bed size, X/Y acceleration (mm/s², `$120`/`$121`) and max rates, written to the controller
 - Material presets: save raster (LPI, speed, power, dither...) and vector (power, speed, passes) settings by name; export/import JSON
