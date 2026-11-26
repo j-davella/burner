@@ -45,6 +45,23 @@ generate), the selected Object (position, cut/score/fill settings, raster), the 
 jog, zero, frame) and the Console. Sections fold and remember it. Errors logged while the console
 is hidden put a dot on its tab. HUD and Classic themes in Settings.
 
+## Effects (3D view)
+
+Press **T** (or the cube on the left rail) for a 3D view of the bed: a holographic grid with the
+machine frame, a wireframe gantry and laser head, the beam glowing with live power, sparks, and
+the toolpath burning in white-hot and cooling to charred as the job runs. Drag to orbit,
+right-drag to pan, scroll to zoom, double-click to reset. The bar under the view replays the job
+before you burn it (preview only, nothing is sent). Jobs switch to 3D when they start (turn that
+off in Settings). Around the 2D bed there's a slow nebula and starfield; connecting warps the
+stars, an alarm sweeps red across the map, a finished job sends out a shockwave, and the run bar
+shows reactor-style power and speed rings.
+
+Settings > Effects: **Full** (all of it), **Lite** (3D without glow/sparks, still backdrop) or
+**Off** (plain 2D, no WebGL). If frames get slow, Full drops to Lite for that session. Sounds are
+off by default. It's raw WebGL2 in `web/fx/fx.js`, isolated from everything else: if it ever
+errors it switches itself off and the controls carry on. STOP, alarms and connection state are
+never covered or delayed by an effect.
+
 ## Simulator
 
 The port list always ends with **Simulator (no laser)**: a fake GRBL 1.1 inside the bridge. Use it to try the UI, plan a job, or check that a long file streams cleanly without a machine attached. It prints a loud `SIM RX OVERFLOW` message if the sender ever overruns GRBL's 127-byte buffer. `--sim-speed 20` runs it 20x faster than real time.
@@ -83,7 +100,7 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 
 Esc stop · Space pause/resume · `[` `]` speed -/+10% · `-` `=` power -/+10% · arrows jog (or nudge the selected object; Shift = 0.1 in) · Del deletes selected · F fits view
 
-V select tool · H pan tool · P show/hide the side panel · 1-4 panel tabs (Job, Object, Machine, Console) · M machine · ` console · Ctrl+O add a file
+V select tool · H pan tool · T 3D view · P show/hide the side panel · 1-4 panel tabs (Job, Object, Machine, Console) · M machine · ` console · Ctrl+O add a file
 
 Units in the UI are inches. Machine is driven in mm (`$13=0`).
 
@@ -97,6 +114,7 @@ web/css/burner.css    styles
 web/engine/*.js       pure logic, ES modules, no DOM: core, geom, dxf, gcode, svgpath,
                       jobs (generate / import / load), worker (runs jobs off the UI thread)
 web/ui/NN-*.js        UI scripts, loaded in order
+web/fx/fx.js          effects + 3D view (WebGL2), isolated: never required by the app
 tests/                golden G-code, fixtures, harnesses
 ```
 

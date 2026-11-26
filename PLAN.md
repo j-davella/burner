@@ -1,4 +1,7 @@
-# Burner — upgrade plan (draft 2026-11-26)
+# Burner — upgrade plan (2026-11-26)
+
+Status: phases 0, 1, 2, 3 and 3b done on branch `upgrade`. Next: 4 (machine robustness).
+Note: 3b uses raw WebGL2 (web/fx/fx.js) instead of vendoring three.js: no download, nothing to trust, ~30 KB.
 
 Decisions so far: keep the browser UI + stdlib Python bridge, polish the HUD
 theme (not a redesign), add design tools, projects/history, camera alignment

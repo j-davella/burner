@@ -81,6 +81,10 @@ label.chk{display:inline-flex;align-items:center;gap:7px;cursor:pointer;white-sp
 .card{background:var(--bg2);border:1px solid var(--ln);border-radius:var(--r);padding:var(--s3);margin-bottom:var(--s3)}
 
 /* ---------- top bar ---------- */
+/* left group shrinks and clips; right group (Test Lab, Settings, STOP) never moves or hides */
+#topbar>.tl{display:flex;align-items:center;gap:var(--s3);min-width:0;flex:1 1 auto;overflow:hidden}
+#topbar>.tr{display:flex;align-items:center;gap:var(--s2);flex:none}
+body{min-width:0}
 #topbar{display:flex;align-items:center;gap:var(--s3);padding:0 var(--s3);min-width:0;
   background:linear-gradient(180deg,#121820,#0c1015);border-bottom:1px solid var(--ln);box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:3}
 .brandbox{display:flex;align-items:center;gap:var(--s2);flex:none}
@@ -175,7 +179,7 @@ details.sec>summary:hover{color:var(--tx)}
 #cmd{width:100%;font-family:var(--mono)}
 
 /* ---------- run bar ---------- */
-#runbar{display:flex;align-items:center;gap:var(--s4);padding:var(--s2) var(--s3);min-height:64px;flex-wrap:wrap;
+#runbar{display:flex;align-items:center;gap:var(--s4);padding:var(--s2) var(--s3);min-height:64px;flex-wrap:nowrap;min-width:0;overflow:hidden;
   background:linear-gradient(0deg,#121820,#0c1015);border-top:1px solid var(--ln);box-shadow:0 -4px 18px rgba(0,0,0,.45);z-index:3}
 .runbtns{display:flex;gap:var(--s2)}
 .runbtns button{min-height:40px;padding:0 16px;font-size:14px}
@@ -183,7 +187,7 @@ details.sec>summary:hover{color:var(--tx)}
 .timer{display:flex;flex-direction:column;line-height:1.1;min-width:120px}
 .timer b{font:800 26px var(--mono);color:#fff;text-shadow:0 0 14px rgba(255,122,26,.45);letter-spacing:1px}
 .timer span{font:600 11px var(--mono);color:var(--dim);margin-top:3px}
-.progwrap{flex:1 1 200px;min-width:160px}
+.progwrap{flex:1 1 200px;min-width:90px}
 #progTxt{font:11px var(--mono);color:var(--dim);margin-top:4px}
 progress{width:100%;height:8px;-webkit-appearance:none;appearance:none;border:1px solid var(--ln);border-radius:6px;background:rgba(255,255,255,.04);overflow:hidden;display:block}
 progress::-webkit-progress-bar{background:rgba(255,255,255,.04)}
@@ -243,8 +247,12 @@ progress::-moz-progress-bar{background:linear-gradient(90deg,var(--acc),var(--ac
 
 /* ---------- smaller screens ---------- */
 @media (max-width:1400px){ :root{--insp:340px} .dro.sm{display:none} .tabs button .ic{display:none} }
+@media (max-width:1320px){ .gauges{display:none!important} }
 @media (max-width:1180px){
   #labBtn span,#gearBtn span{display:none}
+  .conn #baud{display:none}
+  .runbtns button{padding:0 10px}
+  .timer{min-width:96px}
   .ovs{grid-template-columns:auto}
   #pwInfo{display:none}
 }
@@ -318,3 +326,52 @@ body.hud #busy .busy-t{font-family:var(--mono);letter-spacing:2px;text-transform
 body.hud #boot.go{display:flex}
 body.hud .ov .pos{color:#00ffaa;text-shadow:0 0 6px rgba(0,255,170,.5)}
 @media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation:none!important;transition:none!important} }
+
+/* =====================================================================
+   Effects layer (fx/fx.js). body.fx-full / fx-lite / fx-off.
+   The GL canvas sits under the 2D map; in 3D view the 2D map hides and the
+   GL canvas takes the mouse. Nothing here covers STOP, alarms or the run bar.
+   ===================================================================== */
+#gl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
+body.fx-full #gl,body.fx-lite #gl{display:block}
+body.view3d #map{visibility:hidden}
+body.view3d #gl{pointer-events:auto;cursor:grab}
+body.view3d #gl:active{cursor:grabbing}
+body.view3d #layoutNote{display:none!important}
+#view3dBtn{display:none}
+body.fx-full #view3dBtn,body.fx-lite #view3dBtn{display:inline-flex}
+#scrub{position:absolute;left:50%;bottom:36px;transform:translateX(-50%);display:none;align-items:center;gap:var(--s2);z-index:3;
+  padding:6px 12px;background:rgba(1,12,20,.82);border:1px solid var(--ln2);border-radius:var(--r);backdrop-filter:blur(6px);box-shadow:0 0 24px rgba(0,229,255,.15)}
+body.view3d.hasjob #scrub{display:flex}
+#scrub input[type=range]{width:min(420px,40vw);accent-color:var(--acc);min-height:0;padding:0;background:none;border:0;box-shadow:none}
+#scrubTxt{font:12px var(--mono);color:var(--acc2);min-width:5ch;text-align:right}
+#scrub button{min-height:28px}
+/* run-bar gauges (reactor rings) */
+.gauges{display:none;gap:var(--s2)}
+body.fx-full .gauges,body.fx-lite .gauges{display:flex}
+.gauge{position:relative;width:56px;height:56px;flex:none}
+.gauge svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(135deg)}
+.gauge circle{fill:none;stroke-width:4;stroke-linecap:round}
+.gauge .trk{stroke:rgba(255,255,255,.08);stroke-dasharray:122.5 163.4}
+.gauge .arc{stroke:var(--acc);stroke-dasharray:0 163.4;filter:drop-shadow(0 0 4px var(--acc));transition:stroke-dasharray .25s ease-out,stroke .25s}
+.gauge .spin{stroke:var(--acc);stroke-width:1;opacity:.35;stroke-dasharray:4 6;transform-origin:32px 32px}
+body.fx-full .gauge.live .spin{animation:spin 2.4s linear infinite}
+.gauge b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 14px var(--mono);color:var(--tx);margin-top:-4px}
+.gauge small{position:absolute;left:0;right:0;bottom:2px;text-align:center;font:600 8px var(--mono);letter-spacing:1px;color:var(--dim)}
+#gPower .arc{stroke:#ff7a1a;filter:drop-shadow(0 0 5px #ff7a1a)}
+#gPower.live b{color:#ffb066;text-shadow:0 0 10px #ff7a1a}
+/* alarm: red sweep across the map + header tint */
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+body.fx-full.alarm #mapWrap::after,body.fx-lite.alarm #mapWrap::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:linear-gradient(90deg,transparent,rgba(255,40,60,.22),transparent);animation:sweep 1.6s linear infinite}
+body.fx-full.alarm #topbar,body.fx-lite.alarm #topbar{box-shadow:0 0 30px rgba(255,40,60,.45)}
+/* job done: shockwave ring in the 2D view */
+.shock{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2px solid #7ff3ff;pointer-events:none;z-index:3;
+  box-shadow:0 0 18px #00e5ff,inset 0 0 12px #00e5ff;animation:shock 1.1s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes shock{to{transform:scale(28);opacity:0;border-width:.5px}}
+/* holo panels lean toward the mouse (Full only, tiny angle so text stays crisp) */
+body.fx-full #inspector{perspective:900px}
+body.fx-full details.sec{transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .25s ease-out,box-shadow .25s;will-change:transform}
+body.fx-full.hud details.sec:hover{box-shadow:0 0 18px rgba(0,229,255,.08) inset,0 0 26px rgba(0,229,255,.16),0 0 22px rgba(0,0,0,.6)}
+body.fx-off #hudStrip .fxk{display:none}
+@media (prefers-reduced-motion:reduce){ body.fx-full details.sec{transform:none} }
