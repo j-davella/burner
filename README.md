@@ -28,6 +28,8 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - Material presets: save raster (LPI, speed, power, dither...) and vector (power, speed, passes) settings by name; export/import JSON
 - Pauses on G-code errors, alarm bar with Unlock / Home
 - Layout: add images, DXF, SVG. Move, scale, rotate, crop (images), duplicate, delete
+- Objects list: check/uncheck what burns; "Burn only selected" to run one file at a time on a shared sheet
+- Each image keeps its own raster settings; "Pick outer" / "Pick inner" select outline vs inside contours in one click
 - Images raster with M4 dynamic power, optional dithering, bidirectional, overscan
 - DXF: LINE, ARC, CIRCLE, LWPOLYLINE (bulges), POLYLINE, ELLIPSE, SPLINE. Uses `$INSUNITS`, assumes inches if unset. Explode blocks before export
 - Per-contour operations on vectors: Cut, Score, Fill (hatch), Off. Click a contour to pick it, Shift-click to add. Each op has its own power / speed / passes
