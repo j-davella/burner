@@ -36,6 +36,7 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - Burn order: raster, fill, score, then cuts smallest-first so holes and inner parts go before the outline
 - Touching DXF segments are joined into contours on import (SolidWorks exports rectangles as 4 LINEs)
 - Frame the job (optionally at low power), save the G-code
+- Test Lab: 10 one-inch test blocks (score, fill, cuts 1/16-3/8", grayscale, dither, power ramp) burned into a slot grid from W0. Each burn is logged; mark good/bad, add notes, save the winner as tuned per material. Tuned values build presets automatically ("Poplar 1/8\"", "Poplar dither"). Printable report + CSV
 
 ## Keys
 
