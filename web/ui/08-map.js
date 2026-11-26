@@ -24,7 +24,7 @@ const toMach = (sx,sy) => [sx/vw.sc+vw.x0, (H-sy)/vw.sc+vw.y0];
 // Job preview: one Path2D for rapids + one per power level, built once per job in work-coord
 // mm, then drawn through a view transform. While you zoom/pan, the last render is just
 // scaled/moved as a bitmap (cheap); ~200 ms after the view stops it re-renders crisp.
-let lastViewMove=0, jobView=null, crispTimer=0;
+let lastViewMove=0, jobView=null, crispTimer=0, tool='select';   // tool: 'select' | 'pan' (set by 10-shell)
 function viewMoved(){ lastViewMove=performance.now(); dirty=true; clearTimeout(crispTimer); crispTimer=setTimeout(()=>{ dirty=true; }, 200); }
 function forceCrisp(){ lastViewMove=0; }
 function jobPaths(){
@@ -165,7 +165,7 @@ cv.addEventListener('wheel', e=>{
 cv.addEventListener('contextmenu', e=>e.preventDefault());
 cv.addEventListener('mousedown', e=>{
   const p=evPos(e);
-  const h = e.button===0 ? hitTest(p) : null;
+  const h = (e.button===0 && tool!=='pan') ? hitTest(p) : null;
   if(h){
     if(sel!==h.o){ sel=h.o; cropMode=false; }
     if(h.kind==='move' && h.o.type==='vec'){
@@ -177,7 +177,7 @@ cv.addEventListener('mousedown', e=>{
     if(h.kind==='scale'){ const W=oW(h.o), H=oH(h.o); drag.A=toWorld(h.o,-h.ax*W/2,-h.ay*H/2); drag.W0=W; drag.H0=H; drag.sx0=h.o.sx; drag.sy0=h.o.sy; }
     syncProps(); dirty=true;
   } else {
-    if(e.button===0 && sel){ sel=null; cropMode=false; syncProps(); dirty=true; }
+    if(e.button===0 && sel && tool!=='pan'){ sel=null; cropMode=false; syncProps(); dirty=true; }
     drag={kind:'pan', x:e.clientX, y:e.clientY, vx:vw.x0, vy:vw.y0};
   }
 });
@@ -215,7 +215,7 @@ window.addEventListener('mousemove', e=>{
 cv.addEventListener('mousemove', e=>{
   const p=evPos(e);
   $('hover').textContent='M '+(p.mx/MM).toFixed(3)+', '+(p.my/MM).toFixed(3)+' in   W '+(p.wx/MM).toFixed(3)+', '+(p.wy/MM).toFixed(3);
-  if(!drag){ const h=hitTest(p); cv.style.cursor = h ? CURSOR[h.kind] : 'crosshair'; }
+  if(!drag){ if(tool==='pan') cv.style.cursor=''; else { const h=hitTest(p); cv.style.cursor = h ? CURSOR[h.kind] : 'crosshair'; } }
 });
 cv.addEventListener('dblclick', e=>{
   const p=evPos(e);

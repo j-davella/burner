@@ -36,6 +36,15 @@ The browser opens http://localhost:8765. Pick the port, hit Connect.
 
 Options: `--port 9000` (or env `BURNER_PORT`), `--open`, `--sim-speed 20`.
 
+## Screen
+
+STOP is always at the top right. The run bar along the bottom holds Frame / Start / Pause, the
+time left, progress and the live speed / power / rapid overrides. The left rail has the select and
+pan tools, zoom, add file and quick jumps; the right panel has tabs for the Job (files, objects,
+generate), the selected Object (position, cut/score/fill settings, raster), the Machine (home,
+jog, zero, frame) and the Console. Sections fold and remember it. Errors logged while the console
+is hidden put a dot on its tab. HUD and Classic themes in Settings.
+
 ## Simulator
 
 The port list always ends with **Simulator (no laser)**: a fake GRBL 1.1 inside the bridge. Use it to try the UI, plan a job, or check that a long file streams cleanly without a machine attached. It prints a loud `SIM RX OVERFLOW` message if the sender ever overruns GRBL's 127-byte buffer. `--sim-speed 20` runs it 20x faster than real time.
@@ -73,6 +82,8 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 ## Keys
 
 Esc stop · Space pause/resume · `[` `]` speed -/+10% · `-` `=` power -/+10% · arrows jog (or nudge the selected object; Shift = 0.1 in) · Del deletes selected · F fits view
+
+V select tool · H pan tool · P show/hide the side panel · 1-4 panel tabs (Job, Object, Machine, Console) · M machine · ` console · Ctrl+O add a file
 
 Units in the UI are inches. Machine is driven in mm (`$13=0`).
 

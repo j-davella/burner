@@ -70,12 +70,12 @@ function updateUI(){
   $('ovS').textContent = pa!==null ? Math.round(pa)+'%' : '-';
   $('pwInfo').textContent = pa!==null ? 'job set '+Math.round(jm/smax()*100)+'%'+(st.ov[2]!==100?' -> now '+Math.round(pa)+'%':'')+' of laser' : 'adjusts while burning';
   $('ovF').style.color = ov&&st.ov[0]!==100?'var(--warn)':''; $('ovS').style.color = ov&&st.ov[2]!==100?'var(--warn)':'';
-  $('alarmBar').style.display = connected && st.state==='Alarm' ? 'block' : 'none';
+  $('alarmBar').style.display = connected && st.state==='Alarm' ? 'flex' : 'none';
   const idle = connected && !job.running;
   ['homeBtn','unlockBtn','zeroBtn','goZeroBtn','settingsBtn','frameBtn'].forEach(id=>$(id).disabled=!idle);
   $('startBtn').disabled = !(idle && sawBanner && job.lines.length && st.state==='Idle');
   $('pauseBtn').disabled = !(connected && job.running);
-  $('pauseBtn').textContent = (job.paused||st.state==='Hold') ? 'Resume' : 'Pause';
+  { const held=job.paused||st.state==='Hold', pb=$('pauseBtn'); (pb.querySelector('span')||pb).textContent = held ? 'Resume' : 'Pause'; const u=pb.querySelector('use'); if(u) u.setAttribute('href', held?'#i-play':'#i-pause'); }
   $('genBtn').disabled = job.running || !!genRunning; $('loadGcBtn').disabled = job.running; $('loadImgBtn').disabled = job.running;
   $('resetBtn').disabled = !connected;
   $('layoutNote').style.display = layoutStale && objs.length ? '' : 'none';

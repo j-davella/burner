@@ -139,7 +139,7 @@ function renderObjList(){
 }
 function syncProps(){
   renderObjList();
-  $('rasterHdr').textContent = sel&&sel.type==='img' ? 'Raster (this image)' : 'Raster (defaults for new images)';
+  $('rasterHdr').textContent = sel&&sel.type==='img' ? 'Raster: this image' : 'Raster: new image defaults';
   if(sel&&sel.type==='img'&&sel.r){ writeRaster(sel.r); fillPresetSel('rPreset','raster',sel.rPreset||''); }
   $('objNone').style.display = sel?'none':''; $('objBox').style.display = sel?'':'none';
   if(!sel) return;
