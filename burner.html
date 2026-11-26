@@ -151,10 +151,11 @@ hr{border:0;border-top:1px solid var(--ln);margin:10px 0}
       <div class="ov"><b>Speed</b><span id="ovF" class="pos">-</span>
         <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
       <div class="ov"><b>Power</b><span id="ovS" class="pos">-</span>
-        <button data-ov="155">-10</button><button data-ov="157">-1</button><button data-ov="153">100</button><button data-ov="156">+1</button><button data-ov="154">+10</button></div>
+        <button data-pw="-10">-10</button><button data-pw="-1">-1</button><button data-pw="job" title="Back to what the job set">Job</button><button data-pw="1">+1</button><button data-pw="10">+10</button></div>
+      <div id="pwInfo" class="muted" style="font-family:var(--mono);margin:-2px 0 4px 56px">-</div>
       <div class="ov ov3"><b>Rapid</b><span id="ovR" class="pos">-</span>
         <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
-      <div class="muted">Works mid-burn, GRBL clamps 10-200%. Keys: [ ] speed, - = power, Space pause.</div>
+      <div class="muted">Power is actual % of the laser's max ($30), capped at 100. A power tweak lasts until the next operation, then goes back to that op's setting. Speed is % of the job's speed. Keys: [ ] speed, - = power, Space pause.</div>
       <hr>
       <div class="sub">Frame</div>
       <div class="row"><label>Feed</label><input id="frameFeedS" type="number" value="60" step="5" style="width:64px"><label>mm/s</label></div>
@@ -581,7 +582,8 @@ function onLine(l){
   if(l[0]==='<'){ onStatus(Core.parseStatus(l)); return; }
   if(l==='ok' || l.startsWith('error')){
     const it = inflight.shift();
-    if(it){ bufUsed -= it.len; if(bufUsed<0) bufUsed=0; if(it.jobIdx>=0) job.acked = it.jobIdx+1; }
+    if(it){ bufUsed -= it.len; if(bufUsed<0) bufUsed=0; if(it.jobIdx>=0){ job.acked = it.jobIdx+1;
+      if(job.sections){ const sc=job.sections.sec[it.jobIdx]; if(sc!==job.lastSec){ if(job.lastSec>=0 && st.ov && st.ov[2]!==100){ rt(0x99); st.ov[2]=100; log('Next operation: power back to its job setting','dim'); } job.lastSec=sc; } } } }
     if(l.startsWith('error')){
       const code = +l.split(':')[1];
       log((it?it.line+'  ->  ':'')+l+(ERR[code]?'  '+ERR[code]:''),'bad');
@@ -641,7 +643,37 @@ function clearJob(){
   job.lines=[]; job.prev=null; job.name=''; job.idx=0; job.acked=0; job.fromLayout=false;
   $('jobInfo').textContent='No job loaded.'; staticKey=''; dirty=true; updateUI();
 }
+// per-line operation section and its max S, so power can be shown/set as absolute % of the laser
+function buildSections(lines){
+  const sec=new Uint32Array(lines.length), mx=[0]; let cur=0;
+  for(let i=0;i<lines.length;i++){
+    const L=lines[i];
+    if(/^M[34]/.test(L)){ cur=mx.length; mx.push(0); }
+    const m=/S(\d+(?:\.\d+)?)/.exec(L); if(m && +m[1]>mx[cur]) mx[cur]=+m[1];
+    sec[i]=cur;
+  }
+  return {sec, mx};
+}
+function curSecMax(){ if(!job.running||!job.sections) return 0; const i=Math.min(job.lines.length-1,Math.max(0,job.acked-1)); return job.sections.mx[job.sections.sec[i]]||0; }
+function powerAbs(){ const m=curSecMax(); return m ? Math.min(100, m*(st.ov?st.ov[2]:100)/smax()) : null; }
+function sendSpindleOv(want){
+  const cur=st.ov?st.ov[2]:100; want=Math.max(10,Math.min(200,Math.round(want)));
+  if(want===100 && cur!==100){ rt(0x99); st.ov&&(st.ov[2]=100); updateUI(); return; }
+  let d=want-cur;
+  while(d>=10){ rt(0x9A); d-=10; } while(d<=-10){ rt(0x9B); d+=10; }
+  while(d>0){ rt(0x9C); d--; } while(d<0){ rt(0x9D); d++; }
+  if(st.ov) st.ov[2]=want; updateUI();
+}
+function setPowerAbs(target){
+  if(!connected) return;
+  const m=curSecMax(); if(!m){ log('Power adjust works while a job is burning','dim'); return; }
+  const SM=smax(); target=Math.max(0,Math.min(100,target));
+  let want=target*SM/m;                                   // override % that gives target
+  want=Math.min(want, Math.floor(SM/m*100), 200);         // never ask for more than $30
+  sendSpindleOv(want);
+}
 function setJob(lines, name, pitch, fromLayout){
+  job.sections = buildSections(lines); job.lastSec = -1;
   job.lines = lines; job.name = name; job.idx = 0; job.acked = 0; job.running=false; job.paused=false;
   job.fromLayout = !!fromLayout; layoutStale = false;
   job.prev = Core.parseGcode(lines, smax());
@@ -1232,6 +1264,12 @@ function jog(dx,dy){
   const s = +$('jogStep').value*MM, f=(+$('jogFeedS').value||40)*60;
   queue('$J=G91 G21'+(dx?' X'+fmt(dx*s):'')+(dy?' Y'+fmt(dy*s):'')+' F'+fmt(f));
 }
+document.querySelectorAll('[data-pw]').forEach(b=>b.onclick=()=>{
+  if(!connected) return;
+  if(b.dataset.pw==='job'){ sendSpindleOv(100); return; }
+  const a=powerAbs(); if(a===null){ log('Power adjust works while a job is burning','dim'); return; }
+  setPowerAbs(Math.round(a)+(+b.dataset.pw));
+});
 document.querySelectorAll('[data-ov]').forEach(b=>b.onclick=()=>{ if(connected) rt(+b.dataset.ov); });
 document.querySelectorAll('[data-j]').forEach(b=>b.onclick=()=>{ const [x,y]=b.dataset.j.split(',').map(Number); jog(x,y); });
 
@@ -1254,8 +1292,9 @@ document.addEventListener('keydown', e=>{
     if(k){ const d=(e.shiftKey?0.1:0.01)*MM; sel.x+=k[0]*d; sel.y+=k[1]*d; layoutChanged(); e.preventDefault(); return; }
   }
   if(connected){
-    const ov = {'[':0x92,']':0x91,'-':0x9B,'=':0x9A}[e.key];
+    const ov = {'[':0x92,']':0x91}[e.key];
     if(ov){ rt(ov); e.preventDefault(); return; }
+    if(e.key==='-'||e.key==='='){ const a=powerAbs(); if(a!==null) setPowerAbs(Math.round(a)+(e.key==='='?10:-10)); e.preventDefault(); return; }
     if(e.key===' ' && job.running){ pauseJob(); e.preventDefault(); return; }
   }
   if(k){ jog(...k); e.preventDefault(); }
@@ -1271,7 +1310,10 @@ function updateUI(){
   $('mx').textContent = k?(st.m[0]/MM).toFixed(3):'-'; $('my').textContent = k?(st.m[1]/MM).toFixed(3):'-';
   $('fs').textContent = k?Math.round(st.f/60):'-'; $('ss').textContent = k?Math.round(st.s):'-';
   const ov = k && st.ov;
-  $('ovF').textContent = ov?st.ov[0]+'%':'-'; $('ovR').textContent = ov?st.ov[1]+'%':'-'; $('ovS').textContent = ov?st.ov[2]+'%':'-';
+  $('ovF').textContent = ov?st.ov[0]+'%':'-'; $('ovR').textContent = ov?st.ov[1]+'%':'-';
+  const pa = ov ? powerAbs() : null, jm=curSecMax();
+  $('ovS').textContent = pa!==null ? Math.round(pa)+'%' : '-';
+  $('pwInfo').textContent = pa!==null ? 'job set '+Math.round(jm/smax()*100)+'%'+(st.ov[2]!==100?' -> now '+Math.round(pa)+'%':'')+' of laser' : 'adjusts while burning';
   $('ovF').style.color = ov&&st.ov[0]!==100?'var(--warn)':''; $('ovS').style.color = ov&&st.ov[2]!==100?'var(--warn)':'';
   $('alarmBar').style.display = connected && st.state==='Alarm' ? 'block' : 'none';
   const idle = connected && !job.running;
