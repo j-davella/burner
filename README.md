@@ -83,21 +83,44 @@ burner_bridge.py      serial (termios / Win32) + simulator + WebSocket + static 
 burner.cmd/.sh        launchers;  flake.nix = Nix package, app, NixOS module
 web/index.html        page markup
 web/css/burner.css    styles
-web/engine/*.js       pure G-code logic, ES modules, no DOM: core, geom, dxf, gcode
+web/engine/*.js       pure logic, ES modules, no DOM: core, geom, dxf, gcode, svgpath,
+                      jobs (generate / import / load), worker (runs jobs off the UI thread)
 web/ui/NN-*.js        UI scripts, loaded in order
-tests/                golden G-code, fixtures, harness
+tests/                golden G-code, fixtures, harnesses
 ```
+
+## Speed
+
+Generating, importing DXFs and loading G-code run in a Web Worker, so the UI, STOP and
+streaming never freeze; long jobs show a progress bar with Cancel. The map draws from cached
+paths and just scales the last frame while you zoom or pan. SVGs are flattened by Burner's own
+path parser (linear time; the browser's `getPointAtLength` was quadratic).
+
+Measured on the heavy fixtures (900x900 map, Chrome):
+
+| | before | after |
+|---|---|---|
+| Zoom/pan frame, 1.3M-line raster job | 83 ms | 0.08 ms |
+| UI frozen while generating that job | 1.6 s | 33 ms worst block |
+| SVG import, 300 / 3000 curves | 128 s / hours | 30 ms / 130 ms |
+| Contour hover/pick, 2100 contours | 0.6 ms | 0.02 ms |
+| DXF import, 5700 pieces (UI thread) | 72 ms | 2 ms |
 
 ## Tests
 
 What Burner sends to the laser is pinned by `tests/golden/golden.json`, captured from the
-original single-file version (DXF, SVG, gray + dithered rasters, a combined layout, every
-Test Lab block, the time estimate and the preview). A change that alters the G-code shows up here.
+original single-file version: DXF, SVG, gray + dithered rasters, a combined layout, every Test
+Lab block, the time estimate, the preview, and a 5700-piece DXF (joining, outer/inner picking,
+contour hit tests). A change that alters the G-code shows up here.
 
 ```
-node tests/engine.test.mjs                 # engine only, no browser
-python tests/capture_server.py             # then open http://127.0.0.1:8799/web/index.html and run
-                                           # tests/golden-harness.js in the console, POST the result
-                                           # to /capture/split, then:
-python tests/compare_golden.py split       # byte-exact diff of everything the app generates
+node tests/engine.test.mjs        # engine + worker job path, no browser
+node tests/join.test.mjs          # fast contour joiner == original, incl. 30 random dense layouts
+python tests/capture_server.py    # serves the repo on :8799 and accepts POST /capture/<name>
 ```
+
+Then open http://127.0.0.1:8799/web/index.html and run these in the console:
+
+- `tests/golden-harness.js`: POST its result to `/capture/run`, then `python tests/compare_golden.py run` (byte-exact).
+- `tests/svg-compare.js`: the SVG importer vs a 10x finer reference of the true shape (must be within 0.02 mm).
+- `tests/perf-harness.js`: the timings above. `python tests/fixtures/make_heavy.py` regenerates the heavy fixtures.

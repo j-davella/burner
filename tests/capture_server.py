@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test helper: serves the repo root and accepts POST /capture/<name> to write
 tests/out/<name>.json. Used to collect golden G-code from a browser.
-Run: python tests/capture_server.py   (port 8799, localhost only)"""
-import http.server, os, re
+Run: python tests/capture_server.py [port]   (default 8799, localhost only)"""
+import http.server, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "tests", "out")
@@ -33,4 +33,4 @@ class H(http.server.SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    http.server.ThreadingHTTPServer(("127.0.0.1", 8799), H).serve_forever()
+    http.server.ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1]) if len(sys.argv) > 1 else 8799), H).serve_forever()

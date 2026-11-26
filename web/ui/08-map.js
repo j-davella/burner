@@ -21,22 +21,33 @@ function fitView(){
 const px = x => (x-vw.x0)*vw.sc, py = y => H-(y-vw.y0)*vw.sc;
 const toMach = (sx,sy) => [sx/vw.sc+vw.x0, (H-sy)/vw.sc+vw.y0];
 
-function renderStatic(){
-  const g=jobCv.getContext('2d'); g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H);
-  const P=job.prev; if(!P||!P.n) return;
-  const ox=st.wco[0], oy=st.wco[1];
-  // rapids
-  g.strokeStyle='rgba(120,140,160,0.35)'; g.lineWidth=1; g.setLineDash([3,3]); g.beginPath();
-  for(let i=0;i<P.n;i++) if(P.type[i]===0){ g.moveTo(px(P.x0[i]+ox),py(P.y0[i]+oy)); g.lineTo(px(P.x1[i]+ox),py(P.y1[i]+oy)); }
-  g.stroke(); g.setLineDash([]);
-  // burns by level
-  const lw = job.pitch ? Math.max(1, job.pitch*vw.sc) : 1.3;
-  g.lineWidth=lw; g.lineCap = job.pitch?'butt':'round';
-  for(let L=0;L<8;L++){
-    g.strokeStyle='rgba('+BURN_COL+','+(0.18+0.82*(L+1)/8)+')'; g.beginPath(); let any=false;
-    for(let i=0;i<P.n;i++) if(P.type[i]===2 && P.lvl[i]===L){ g.moveTo(px(P.x0[i]+ox),py(P.y0[i]+oy)); g.lineTo(px(P.x1[i]+ox),py(P.y1[i]+oy)); any=true; }
-    if(any) g.stroke();
+// Job preview: one Path2D for rapids + one per power level, built once per job in work-coord
+// mm, then drawn through a view transform. While you zoom/pan, the last render is just
+// scaled/moved as a bitmap (cheap); ~200 ms after the view stops it re-renders crisp.
+let lastViewMove=0, jobView=null, crispTimer=0;
+function viewMoved(){ lastViewMove=performance.now(); dirty=true; clearTimeout(crispTimer); crispTimer=setTimeout(()=>{ dirty=true; }, 200); }
+function forceCrisp(){ lastViewMove=0; }
+function jobPaths(){
+  const P=job.prev; if(!P||!P.n) return null;
+  if(job.paths && job.paths.P===P) return job.paths;
+  const rapid=new Path2D(), lv=Array.from({length:8},()=>new Path2D()), has=new Uint8Array(8); let anyRapid=false;
+  for(let i=0;i<P.n;i++){
+    const t=P.type[i];
+    if(t===0){ rapid.moveTo(P.x0[i],P.y0[i]); rapid.lineTo(P.x1[i],P.y1[i]); anyRapid=true; }
+    else if(t===2){ const L=P.lvl[i]; lv[L].moveTo(P.x0[i],P.y0[i]); lv[L].lineTo(P.x1[i],P.y1[i]); has[L]=1; }
   }
+  return (job.paths={P, rapid, anyRapid, lv, has});
+}
+// canvas transform: work-coord mm -> device pixels for the current view
+function workTransform(g){ const s=vw.sc; g.setTransform(DPR*s,0,0,-DPR*s, DPR*(st.wco[0]-vw.x0)*s, DPR*(H-(st.wco[1]-vw.y0)*s)); }
+function renderStatic(){
+  const g=jobCv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,jobCv.width,jobCv.height);
+  jobView={ x0:vw.x0, y0:vw.y0, sc:vw.sc };
+  const jp=jobPaths(); if(!jp) return;
+  const s=vw.sc; workTransform(g);
+  if(jp.anyRapid){ g.strokeStyle='rgba(120,140,160,0.35)'; g.lineWidth=1/s; g.setLineDash([3/s,3/s]); g.stroke(jp.rapid); g.setLineDash([]); }
+  g.lineWidth = (job.pitch ? Math.max(1, job.pitch*s) : 1.3)/s; g.lineCap = job.pitch?'butt':'round';
+  for(let L=0;L<8;L++){ if(!jp.has[L]) continue; g.strokeStyle='rgba('+BURN_COL+','+(0.18+0.82*(L+1)/8)+')'; g.stroke(jp.lv[L]); }
 }
 function clearDone(){ const g=doneCv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,doneCv.width,doneCv.height); doneSeg=0; }
 function renderDone(){
@@ -53,9 +64,13 @@ function renderDone(){
   g.stroke(); doneSeg=lo;
 }
 function draw(){
-  const key = [W,H,vw.x0,vw.y0,vw.sc,st.wco[0],st.wco[1],job.prev?job.prev.n:0,job.name].join('|');
-  if(key!==staticKey){ staticKey=key; renderStatic(); const keep=job.acked; clearDone(); if(keep) renderDone(); }
-  renderDone();
+  const ckey = [W,H,st.wco[0],st.wco[1],job.prev?job.prev.n:0,job.name].join('|'), key = ckey+'#'+[vw.x0,vw.y0,vw.sc].join('|');
+  let blit=false;
+  if(key!==staticKey){
+    if(staticKey.split('#')[0]===ckey && jobView && performance.now()-lastViewMove<180) blit=true;   // mid-zoom/pan
+    else { staticKey=key; renderStatic(); const keep=job.acked; clearDone(); if(keep) renderDone(); }
+  }
+  if(!blit) renderDone();
   const g=cx; g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H);
   // bed + inch grid
   const b=bedRect();
@@ -77,7 +92,13 @@ function draw(){
   g.fillStyle=H_?'rgba(127,243,255,0.75)':'#7d8a99'; g.font='10px ui-monospace,monospace';
   for(let x=b.x0;x<=b.x0+b.w+0.01;x+=step) g.fillText(((x)/MM).toFixed(0), px(x)+2, py(b.y0)+11);
   // job layers
-  g.setTransform(1,0,0,1,0,0); if(!(layoutStale && job.fromLayout)){ g.drawImage(jobCv,0,0); g.drawImage(doneCv,0,0); } g.setTransform(DPR,0,0,DPR,0,0);
+  if(!(layoutStale && job.fromLayout)){
+    if(blit){ // map the last crisp render from its view to the current one
+      const k=vw.sc/jobView.sc, ex=(jobView.x0-vw.x0)*vw.sc, ey=H-H*k-(jobView.y0-vw.y0)*vw.sc;
+      g.setTransform(DPR*k,0,0,DPR*k,DPR*ex,DPR*ey); g.drawImage(jobCv,0,0,W,H); g.drawImage(doneCv,0,0,W,H);
+    } else { g.setTransform(1,0,0,1,0,0); g.drawImage(jobCv,0,0); g.drawImage(doneCv,0,0); }
+  }
+  g.setTransform(DPR,0,0,DPR,0,0);
   drawObjs(g);
   // work zero
   if(st.known){
@@ -131,14 +152,15 @@ function hitTest(p){
 }
 function pathAt(o,p){
   const [lx,ly]=toLocal(o,p.wx,p.wy), X=lx/o.sx+o.cw/2, Y=ly/o.sy+o.ch/2, tol=7/vw.sc/Math.min(o.sx,o.sy);
-  let best=-1, bd=tol;
-  o.polys.forEach((q,pi)=>{ for(let i=0;i+3<q.length;i+=2){ const ax=q[i],ay=q[i+1],bx=q[i+2],by=q[i+3],dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy; let t=L?((X-ax)*dx+(Y-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); const d=Math.hypot(X-ax-t*dx,Y-ay-t*dy); if(d<bd){bd=d;best=pi;} } });
+  let best=-1, bd=tol; const bb=Eng.polyBoxes(o);
+  // skip contours whose bounding box is farther than the best hit so far (can't win)
+  o.polys.forEach((q,pi)=>{ if(X<bb[pi*4]-bd||X>bb[pi*4+2]+bd||Y<bb[pi*4+1]-bd||Y>bb[pi*4+3]+bd) return; for(let i=0;i+3<q.length;i+=2){ const ax=q[i],ay=q[i+1],bx=q[i+2],by=q[i+3],dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy; let t=L?((X-ax)*dx+(Y-ay)*dy)/L:0; t=Math.max(0,Math.min(1,t)); const d=Math.hypot(X-ax-t*dx,Y-ay-t*dy); if(d<bd){bd=d;best=pi;} } });
   return best;
 }
 const CURSOR={move:'move',scale:'nwse-resize',rot:'grab',crop:'col-resize'};
 cv.addEventListener('wheel', e=>{
   e.preventDefault(); const r=cv.getBoundingClientRect(); const [mx,my]=toMach(e.clientX-r.left,e.clientY-r.top);
-  const f = e.deltaY<0?1.15:1/1.15; vw.sc*=f; vw.x0 = mx-(mx-vw.x0)/f; vw.y0 = my-(my-vw.y0)/f; staticKey=''; dirty=true;
+  const f = e.deltaY<0?1.15:1/1.15; vw.sc*=f; vw.x0 = mx-(mx-vw.x0)/f; vw.y0 = my-(my-vw.y0)/f; viewMoved();
 },{passive:false});
 cv.addEventListener('contextmenu', e=>e.preventDefault());
 cv.addEventListener('mousedown', e=>{
@@ -162,7 +184,7 @@ cv.addEventListener('mousedown', e=>{
 window.addEventListener('mouseup', ()=>{ drag=null; });
 window.addEventListener('mousemove', e=>{
   if(!drag) return;
-  if(drag.kind==='pan'){ vw.x0=drag.vx-(e.clientX-drag.x)/vw.sc; vw.y0=drag.vy+(e.clientY-drag.y)/vw.sc; staticKey=''; dirty=true; return; }
+  if(drag.kind==='pan'){ vw.x0=drag.vx-(e.clientX-drag.x)/vw.sc; vw.y0=drag.vy+(e.clientY-drag.y)/vw.sc; viewMoved(); return; }
   const p=evPos(e), o=drag.o;
   if(drag.kind==='move'){ o.x=drag.x0+(p.wx-drag.p0.wx); o.y=drag.y0+(p.wy-drag.p0.wy); }
   else if(drag.kind==='rot'){

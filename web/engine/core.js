@@ -90,13 +90,15 @@ const Core = (() => {
   }
 
   // dark: Float32Array 0..1, row 0 = top of image. o: {pitch mm, feed mm/min, smin, smax, over mm, thresh 0..1, bidir}
-  function rasterGcode(dark, cols, rows, o) {
+  // tick(row) (optional) is called every 32 rows for progress; it never changes the output.
+  function rasterGcode(dark, cols, rows, o, tick) {
     const p = o.pitch, ox = o.ox || 0, oy = o.oy || 0;
     const fx = v => fmt(v + ox);
     const out = ['; Burner raster ' + cols + 'x' + rows + ' px, pitch ' + fmt(p) + ' mm', 'G21', 'G90', 'M5', 'M4 S0', 'G1 F' + fmt(o.feed)];
     const sv = new Int32Array(cols);
     let fwd = true;
     for (let r = 0; r < rows; r++) {
+      if (tick && (r & 31) === 0) tick(r);
       const y = (rows - 1 - r) * p + p / 2;
       let first = -1, last = -1;
       for (let c = 0; c < cols; c++) {

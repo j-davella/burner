@@ -5,6 +5,7 @@ import Core from '../web/engine/core.js';
 import * as E from '../web/engine/gcode.js';
 import * as G from '../web/engine/geom.js';
 import { parseDXF } from '../web/engine/dxf.js';
+import * as J from '../web/engine/jobs.js';
 
 const here = new URL('.', import.meta.url);
 const gold = JSON.parse(readFileSync(new URL('golden/golden.json', here)));
@@ -35,6 +36,10 @@ o.pathOp = o.polys.map((p, i) => ['cut', 'score', 'fill', 'off'][i % 4]).map((op
 o.set = { cut: { power: 90, feed: 4, passes: 2 }, score: { power: 25, feed: 18, passes: 1 }, fill: { power: 35, feed: 55, passes: 2, interval: 0.15 } };
 const job = o => { const L = ['G21', 'G90']; E.vectorGcode([o], 1000, L); L.push('M5 S0', 'G0 X0 Y0'); return L; };
 check('dxf', job(o));
+// the same job through the Web Worker's entry point (engine/jobs.js), as the UI now runs it
+const settings0 = { 30: '1000', 110: '6000', 111: '6000', 120: '500', 121: '500' };
+const wres = J.runJob('gen', { imgs: [], vecs: [o], SM: 1000, settings: settings0, smax: 1000 });
+check('dxf', wres.text.split('\n'));
 o.rot = 30; o.sx = 1.25; o.sy = 0.8; o.x += 7;
 check('dxf_xform', job(o));
 

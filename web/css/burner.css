@@ -161,3 +161,15 @@ body.hud #boot.go{display:flex}
 #boot .ring{width:110px;height:110px;margin-bottom:22px}
 #boot .ln{opacity:0;animation:bootln .25s forwards;white-space:pre}
 @keyframes bootln{to{opacity:1}}
+
+/* ===================== busy overlay (generate / import) ===================== */
+#busy{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);min-width:280px;max-width:80%;padding:14px 16px;
+  background:rgba(7,12,18,.92);border:1px solid var(--ln2);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.6);
+  opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:5}
+#busy.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+#busy .busy-t{font-weight:700;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#busy .busy-bar{height:6px;border-radius:4px;background:#0a0d11;overflow:hidden}
+#busy .busy-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));box-shadow:0 0 10px var(--acc);transition:width .1s linear}
+#busy .busy-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font:12px var(--mono);color:var(--dim)}
+body.hud #busy{background:rgba(1,14,22,.92);border-radius:4px;box-shadow:0 0 40px rgba(0,229,255,.18)}
+body.hud #busy .busy-t{font-family:var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--acc2);text-shadow:0 0 8px rgba(0,229,255,.5)}

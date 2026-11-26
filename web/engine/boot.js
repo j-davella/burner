@@ -4,6 +4,8 @@ import Core from './core.js';
 import * as Geom from './geom.js';
 import * as Dxf from './dxf.js';
 import * as Gcode from './gcode.js';
+import * as Jobs from './jobs.js';
+import * as Svg from './svgpath.js';
 
 window.Core = Core;
-window.Eng = Object.freeze({ ...Geom, ...Dxf, ...Gcode });
+window.Eng = Object.freeze({ ...Geom, ...Dxf, ...Gcode, ...Jobs, ...Svg });

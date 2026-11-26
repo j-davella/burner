@@ -3,9 +3,10 @@ const objs=[]; let sel=null, cropMode=false, layoutStale=false;
 function readRaster(){ const v={}; for(const id of RFIELDS){ const el=$(id); v[id]= el.type==='checkbox'?el.checked:+el.value; } return v; }
 function writeRaster(v){ for(const id of RFIELDS){ if(v[id]===undefined) continue; const el=$(id); if(el.type==='checkbox') el.checked=v[id]; else el.value=v[id]; } }
 function layoutChanged(){
+  layoutVer++;
   if(!objs.length && job.fromLayout){ layoutStale=false; clearJob(); }
   else if(objs.length) layoutStale=true;
-  dirty=true; syncProps(); updateUI();
+  dirty=true; scheduleUI();                    // panel + status refresh once per frame, not per mousemove
 }
 function addObj(o){
   o.on=true;
@@ -23,13 +24,32 @@ $('imgFile').onchange = async e=>{
   for(const f of [...e.target.files]){
     const n=f.name.toLowerCase();
     try{
-      if(n.endsWith('.dxf')) addVec(f.name, parseDXF(await f.text()));
-      else if(n.endsWith('.svg')) addVec(f.name, parseSVG(await f.text()));
+      if(n.endsWith('.dxf')) await importVecText(f.name, await f.text(), 'dxf');
+      else if(n.endsWith('.svg')) await importVecText(f.name, await f.text(), 'svg');
       else await addImage(f);
-    }catch(err){ log('Load '+f.name+' failed: '+err.message,'bad'); }
+    }catch(err){
+      if(err.cancelled){ log('Import cancelled','warn'); break; }
+      log('Load '+f.name+' failed: '+err.message,'bad');
+    }
   }
   e.target.value='';
 };
+// DXF: parse + join in the worker. SVG: the browser resolves transforms/units (needs the
+// DOM), then our own linear-time flattener; joining is fast either way now.
+async function importVecText(name, text, kind){
+  const t0=performance.now(); let mainMs=0;
+  if(kind==='svg'){ addVec(name, parseSVG(text)); window.__lastImportMainMs=+(performance.now()-t0).toFixed(1); return; }
+  Busy.show('Importing '+name);
+  try{
+    const res=await Jobs.run('vec', { name, text }, (f,s)=>Busy.set(f,s));
+    const t1=performance.now();
+    for(const [m,c] of res.logs) log(m,c);
+    if(res.error) throw new Error(res.error);
+    addVecNorm(name, res.n0, res.v);
+    mainMs=performance.now()-t1;
+  } finally { Busy.hide(); }
+  window.__lastImportMainMs=+mainMs.toFixed(1);
+}
 function addImage(f){
   return new Promise((res,rej)=>{
     const im=new Image();
@@ -44,14 +64,30 @@ function addImage(f){
 }
 function addVec(name, polys){
   const n0=polys.length;
-  const v=Eng.normalizeVec(polys);
+  addVecNorm(name, n0, Eng.normalizeVec(polys));
+}
+function addVecNorm(name, n0, v){
   if(v.polys.length<n0) log('Joined '+n0+' pieces into '+v.polys.length+' contours','dim');
-  polys=v.polys; const w=v.w, h=v.h, pts=v.pts;
+  const polys=v.polys, w=v.w, h=v.h, pts=v.pts;
   addObj({type:'vec', name, polys, cx:0, cy:0, cw:w, ch:h, sx:1, sy:1, pathOp:polys.map(()=>'score'), psel:new Set(), set:defaultOps()});
   log('Vector '+name+': '+polys.length+' paths, '+pts+' pts, '+(w/MM).toFixed(3)+' x '+(h/MM).toFixed(3)+' in. All contours start as Score. Default power/speed are placeholders, dial them in on scrap.','dim');
 }
 
-// ----- SVG (uses the browser's own geometry engine) -----
+// ----- SVG -----
+// The browser resolves units, viewBox and transforms (getScreenCTM); geometry is flattened by
+// engine/svgpath.js in linear time. (The old getPointAtLength sampler, kept in
+// tests/legacy-svg.js, took minutes on a few thousand curves; tests/svg-compare.js checks
+// both give the same shapes.)
+function svgShapePath(g){
+  const t=g.nodeName.toLowerCase(), L=a=>g[a].baseVal.value;
+  if(t==='path') return g.getAttribute('d')||'';
+  if(t==='line') return 'M'+L('x1')+' '+L('y1')+'L'+L('x2')+' '+L('y2');
+  if(t==='polyline'||t==='polygon'){ const a=[]; for(let i=0;i<g.points.numberOfItems;i++){ const q=g.points.getItem(i); a.push(q.x,q.y); } return Eng.polyPath(a, t==='polygon'); }
+  if(t==='rect'){ let rx=g.hasAttribute('rx')?L('rx'):null, ry=g.hasAttribute('ry')?L('ry'):null; if(rx===null) rx=ry===null?0:ry; if(ry===null) ry=rx; return Eng.rectPath(L('x'),L('y'),L('width'),L('height'),rx,ry); }
+  if(t==='circle'){ const r=L('r'); return Eng.ellipsePath(L('cx'),L('cy'),r,r); }
+  if(t==='ellipse') return Eng.ellipsePath(L('cx'),L('cy'),L('rx'),L('ry'));
+  return '';
+}
 function parseSVG(t){
   const doc=new DOMParser().parseFromString(t,'image/svg+xml');
   const src=doc.documentElement; if(!src || src.nodeName.toLowerCase()!=='svg') throw new Error('not an SVG');
@@ -71,29 +107,16 @@ function parseSVG(t){
       let len; try{ len=g.getTotalLength(); }catch{ continue; }
       if(!(len>0)) continue;
       const M=root.multiply(g.getScreenCTM());
-      const sc=Math.sqrt(Math.abs(M.a*M.d-M.b*M.c))*k || k;
-      const step=Math.max(len/50000, 0.1/sc);       // ~0.1 mm
-      const n=Math.ceil(len/step);
-      const P=l=>{ const q=g.getPointAtLength(l); return [(M.a*q.x+M.c*q.y+M.e)*k, -(M.b*q.x+M.d*q.y+M.f)*k, q.x, q.y]; };
-      let cur=[], prev=P(0), prevL=0; cur.push(prev[0],prev[1]);
-      for(let i=1;i<=n;i++){
-        const l=Math.min(len,i*step), p=P(l);
-        if(Math.hypot(p[2]-prev[2],p[3]-prev[3]) > (l-prevL)*1.5+1e-6){
-          // subpath jump: binary search the break
-          let a=prevL, b=l;
-          for(let it=0;it<30;it++){ const mid=(a+b)/2, q=P(mid); if(Math.hypot(q[2]-prev[2],q[3]-prev[3]) <= (mid-prevL)*1.5+1e-6) a=mid; else b=mid; }
-          const ea=P(a); cur.push(ea[0],ea[1]); polys.push(cur);
-          const sb=P(b); cur=[sb[0],sb[1]];
-          if(b<l) cur.push(p[0],p[1]);
-        } else cur.push(p[0],p[1]);
-        prev=p; prevL=l;
+      const sc=Math.sqrt(Math.abs(M.a*M.d-M.b*M.c))*k || k;   // output mm per user unit
+      for(const sp of Eng.flattenPath(svgShapePath(g), sc, 0.1)){
+        const q=sp.pts, out=new Array(q.length);
+        for(let i=0;i<q.length;i+=2){ out[i]=(M.a*q[i]+M.c*q[i+1]+M.e)*k; out[i+1]=-(M.b*q[i]+M.d*q[i+1]+M.f)*k; }
+        polys.push(out);
       }
-      polys.push(cur);
     }
     return polys.map(p=>simplify(p,0.01));
   } finally { host.remove(); }
 }
-
 // ----- properties panel -----
 function objSummary(o){
   if(o.type==='img'){ const r=o.r||{}; return (r.rDither?'dither ':'gray ')+(r.rLpi||'')+'lpi '+(r.rPmax!==undefined?r.rPmax+'%':''); }

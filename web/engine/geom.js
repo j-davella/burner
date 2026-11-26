@@ -12,8 +12,54 @@ export function layoutBounds(list){
   return b;
 }
 
-// chain segments whose endpoints touch into single contours (SolidWorks DXF exports a rectangle as 4 LINEs)
+// Chain segments whose endpoints touch into single contours (SolidWorks DXF exports a rectangle as 4 LINEs).
+// Same result, piece for piece, as the original O(n^2) scan (joinPolysSlow below, kept for the tests):
+// take the LAST remaining piece, then repeatedly attach the remaining piece with the LOWEST index that
+// touches either end, testing end->start, end->end, start->end, start->start in that order.
+// A spatial hash of endpoints finds the candidates, so big DXFs join in roughly linear time.
 export function joinPolys(ps, tol){
+  tol=tol||0.01;
+  const eq=(ax,ay,bx,by)=>Math.abs(ax-bx)<tol&&Math.abs(ay-by)<tol;
+  const rev=q=>{ const r=[]; for(let i=q.length-2;i>=0;i-=2) r.push(q[i],q[i+1]); return r; };
+  const P=ps.map(p=>Array.from(p)), N=P.length, alive=new Uint8Array(N).fill(1), out=[];
+  // grid of cell size tol: any point within tol (per axis) of (x,y) is in the 3x3 cells around it
+  const grid=new Map(), key=(cx,cy)=>cx+','+cy;
+  const cell=v=>Math.floor(v/tol);
+  const addPt=(x,y,i)=>{ const k=key(cell(x),cell(y)); let a=grid.get(k); if(!a) grid.set(k,a=[]); a.push(i); };
+  for(let i=0;i<N;i++){ const q=P[i], m=q.length; if(m<2) continue; addPt(q[0],q[1],i); addPt(q[m-2],q[m-1],i); }
+  const near=(x,y,set)=>{ const cx=cell(x), cy=cell(y); for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){ const a=grid.get(key(cx+dx,cy+dy)); if(a) for(const i of a) if(alive[i]) set.add(i); } };
+  let top=N-1;
+  const cand=new Set();
+  while(true){
+    while(top>=0 && !alive[top]) top--;
+    if(top<0) break;
+    let cur=P[top]; alive[top]=0;
+    let grew=true;
+    while(grew){
+      grew=false; const n=cur.length;
+      if(n>=6 && eq(cur[0],cur[1],cur[n-2],cur[n-1])) break;
+      const ex=cur[n-2], ey=cur[n-1], sx=cur[0], sy=cur[1];
+      cand.clear(); near(ex,ey,cand); near(sx,sy,cand);
+      let best=-1;
+      for(const i of cand){
+        if(best>=0 && i>=best) continue;
+        const q=P[i], m=q.length;
+        if(eq(ex,ey,q[0],q[1])||eq(ex,ey,q[m-2],q[m-1])||eq(sx,sy,q[m-2],q[m-1])||eq(sx,sy,q[0],q[1])) best=i;
+      }
+      if(best<0) break;
+      const q=P[best], m=q.length;
+      if(eq(ex,ey,q[0],q[1])) cur=cur.concat(q.slice(2));
+      else if(eq(ex,ey,q[m-2],q[m-1])) cur=cur.concat(rev(q).slice(2));
+      else if(eq(sx,sy,q[m-2],q[m-1])) cur=q.concat(cur.slice(2));
+      else cur=rev(q).concat(cur.slice(2));
+      alive[best]=0; grew=true;
+    }
+    out.push(cur);
+  }
+  return out;
+}
+// The original joiner, kept as the reference the fast one is tested against.
+export function joinPolysSlow(ps, tol){
   tol=tol||0.01;
   const eq=(ax,ay,bx,by)=>Math.abs(ax-bx)<tol&&Math.abs(ay-by)<tol;
   const rev=q=>{ const r=[]; for(let i=q.length-2;i>=0;i-=2) r.push(q[i],q[i+1]); return r; };
@@ -84,9 +130,20 @@ export function nurbs(deg, knots, ctrl, w){
 
 export function inPoly(x,y,p){ let c=false; const n=p.length/2; for(let i=0,j=n-1;i<n;j=i++){ const xi=p[i*2],yi=p[i*2+1],xj=p[j*2],yj=p[j*2+1]; if(((yi>y)!==(yj>y)) && x<(xj-xi)*(y-yi)/(yj-yi)+xi) c=!c; } return c; }
 export function isClosed(p){ const n=p.length; return n>=6 && Math.hypot(p[0]-p[n-2],p[1]-p[n-1]) < 0.05; }
+// per-contour bounding boxes [x0,y0,x1,y1,...], cached on the object until its polys change
+export function polyBoxes(o){
+  if(o._bb && o._bbP===o.polys) return o._bb;
+  const bb=new Float64Array(o.polys.length*4);
+  o.polys.forEach((p,i)=>{ let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity; for(let k=0;k<p.length;k+=2){ const x=p[k], y=p[k+1]; if(x<a)a=x; if(x>c)c=x; if(y<b)b=y; if(y>d)d=y; } bb[i*4]=a; bb[i*4+1]=b; bb[i*4+2]=c; bb[i*4+3]=d; });
+  o._bb=bb; o._bbP=o.polys; return bb;
+}
 export function containedIdx(o){ // contours lying inside some other closed contour
-  const closed=o.polys.map(isClosed), inside=new Set();
-  o.polys.forEach((p,i)=>{ const mx=p[0], my=p[1]; for(let j=0;j<o.polys.length;j++){ if(j===i||!closed[j]) continue; if(inPoly(mx,my,o.polys[j])){ inside.add(i); break; } } });
+  // A point outside a ring's bounding box can't be inside it (even-odd test), so the box
+  // check only skips work; the answer is the same as testing every pair.
+  const closed=o.polys.map(isClosed), inside=new Set(), bb=polyBoxes(o);
+  o.polys.forEach((p,i)=>{ const mx=p[0], my=p[1]; for(let j=0;j<o.polys.length;j++){ if(j===i||!closed[j]) continue;
+    if(mx<bb[j*4]||mx>bb[j*4+2]||my<bb[j*4+1]||my>bb[j*4+3]) continue;
+    if(inPoly(mx,my,o.polys[j])){ inside.add(i); break; } } });
   return inside;
 }
 

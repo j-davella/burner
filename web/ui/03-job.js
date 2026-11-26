@@ -23,25 +23,36 @@ function setPowerAbs(target){
   want=Math.min(want, Math.floor(SM/m*100), 200);         // never ask for more than $30
   sendSpindleOv(want);
 }
-function setJob(lines, name, pitch, fromLayout){
-  { const lt=estLineTimes(lines), cum=new Float64Array(lines.length+1); for(let i=0;i<lines.length;i++) cum[i+1]=cum[i]+lt[i]; job.lt=lt; job.cum=cum; job.estTotal=cum[lines.length]; }
-  job.sections = buildSections(lines); job.lastSec = -1;
+// pre (optional): {lt, cum, estTotal, sections, prev} already computed by the worker
+function setJob(lines, name, pitch, fromLayout, pre){
+  if(pre && pre.prev){ job.lt=pre.lt; job.cum=pre.cum; job.estTotal=pre.estTotal; job.sections=pre.sections; }
+  else { const lt=estLineTimes(lines), cum=new Float64Array(lines.length+1); for(let i=0;i<lines.length;i++) cum[i+1]=cum[i]+lt[i]; job.lt=lt; job.cum=cum; job.estTotal=cum[lines.length];
+         job.sections = buildSections(lines); }
+  job.lastSec = -1;
   job.lines = lines; job.name = name; job.idx = 0; job.acked = 0; job.running=false; job.paused=false; job.doneS=0;
   job.fromLayout = !!fromLayout; layoutStale = false;
-  job.prev = Core.parseGcode(lines, smax());
+  job.prev = pre && pre.prev ? pre.prev : Core.parseGcode(lines, smax());
+  job.paths = null;                                       // preview Path2Ds, built on first draw
   job.pitch = pitch || 0;
   const b = job.prev.burn || job.prev.all;
   $('jobInfo').innerHTML = '<b>'+name+'</b><br>'+lines.length.toLocaleString()+' lines'+
     (b?', '+((b.maxX-b.minX)/MM).toFixed(3)+' x '+((b.maxY-b.minY)/MM).toFixed(3)+' in burn area, from ('+(b.minX/MM).toFixed(3)+', '+(b.minY/MM).toFixed(3)+')':'')+
     '<br>estimated time '+fmtT(job.estTotal);
-  if(lines.length>400000) log('Big job ('+lines.length.toLocaleString()+' lines). Preview may be slow.','warn');
   doneSeg = 0; staticKey=''; if(!fromLayout) fitView(); dirty=true; updateUI();
 }
 
-function startJob(){
+// Regenerate a stale layout first. Generation is async (worker), so re-check the
+// machine afterwards, and refuse if the layout changed while it was generating.
+async function freshLayout(){
+  if(!layoutStale) return true;
+  if(!(await generateLayout())) return false;
+  if(layoutStale){ log('Layout changed while generating. Press it again.','warn'); return false; }
+  return canCommand();
+}
+async function startJob(){
   if(!canCommand()) return;
   if(!sawBanner){ log('Controller has not reported in yet. Wait a sec.','warn'); return; }
-  if(layoutStale && !generateLayout()) return;
+  if(!(await freshLayout())) return;
   if(!job.lines.length){ log('No job loaded','warn'); return; }
   if(st.state!=='Idle'){ log('Controller must be Idle to start (now '+st.state+')','warn'); return; }
   if(settings[32]==='0'){ log('Refusing to start: $32=0 (laser mode off). Laser would stay on during rapids. Send $32=1.','bad'); return; }
@@ -69,9 +80,9 @@ function stopAll(){
   updateUI();
 }
 
-function frameJob(){
+async function frameJob(){
   if(!canCommand()) return;
-  if(layoutStale && !generateLayout()) return;
+  if(!(await freshLayout())) return;
   if(!job.prev){ log('Load a job first','warn'); return; }
   const b = job.prev.burn || job.prev.all; if(!b) return;
   const f = (+$('frameFeedS').value||60)*60;
@@ -85,8 +96,15 @@ function frameJob(){
 // ---------- G-code file ----------
 $('loadGcBtn').onclick = ()=>$('gcFile').click();
 $('gcFile').onchange = async e=>{
-  const f = e.target.files[0]; if(!f) return;
-  const txt = await f.text();
-  const lines = txt.split(/\r?\n/).map(Core.cleanLine).filter(Boolean);
-  setJob(lines, f.name); e.target.value='';
+  const f = e.target.files[0]; if(!f) return; e.target.value='';
+  if(job.running){ log('Job running. Stop it before loading another.','warn'); return; }
+  Busy.show('Loading '+f.name);
+  try{
+    const res = await Jobs.run('gcode', { name:f.name, text:await f.text(), settings:{...settings}, smax:smax() }, (p,s)=>Busy.set(p,s));
+    Busy.set(1,'Loading '+res.count.toLocaleString()+' lines');
+    const lines=await splitLines(res.text, ()=>{});
+    if(job.running) return;
+    setJob(lines, f.name, 0, false, res);
+  }catch(err){ log(err.cancelled ? 'Loading cancelled' : 'Load '+f.name+' failed: '+err.message, err.cancelled?'warn':'bad'); }
+  finally{ Busy.hide(); }
 };

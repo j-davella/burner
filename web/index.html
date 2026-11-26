@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="css/burner.css">
 <script type="module" src="engine/boot.js"></script>
 <script defer src="ui/01-base.js"></script>
+<script defer src="ui/01b-jobs.js"></script>
 <script defer src="ui/02-serial.js"></script>
 <script defer src="ui/03-job.js"></script>
 <script defer src="ui/04-layout.js"></script>
@@ -99,6 +100,7 @@
     <div id="hudStrip"></div>
     <div id="mapHint">Scroll zoom &middot; drag pan &middot; F fit &middot; double-click go there</div>
     <div id="hover"></div>
+    <div id="busy" role="status" aria-live="polite"><div class="busy-t">Working</div><div class="busy-bar"><i></i></div><div class="busy-row"><span class="busy-p">0%</span><button id="busyCancel" class="icon">Cancel</button></div></div>
   </div>
 
   <div class="col right">

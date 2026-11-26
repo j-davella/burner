@@ -76,7 +76,7 @@ function updateUI(){
   $('startBtn').disabled = !(idle && sawBanner && job.lines.length && st.state==='Idle');
   $('pauseBtn').disabled = !(connected && job.running);
   $('pauseBtn').textContent = (job.paused||st.state==='Hold') ? 'Resume' : 'Pause';
-  $('genBtn').disabled = job.running; $('loadGcBtn').disabled = job.running; $('loadImgBtn').disabled = job.running;
+  $('genBtn').disabled = job.running || !!genRunning; $('loadGcBtn').disabled = job.running; $('loadImgBtn').disabled = job.running;
   $('resetBtn').disabled = !connected;
   $('layoutNote').style.display = layoutStale && objs.length ? '' : 'none';
   updateHudStrip();
