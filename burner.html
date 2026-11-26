@@ -4,71 +4,105 @@
 <meta charset="utf-8">
 <title>Burner - GRBL laser sender</title>
 <style>
-:root{--bg:#101316;--pn:#181d22;--pn2:#1f252b;--ln:#2b333b;--tx:#d9dfe5;--dim:#7c8791;--acc:#ff8a3d;--ok:#4cc38a;--bad:#ff4d4d;--warn:#f5c542;--blu:#5aa9ff}
+:root{
+  --bg:#07090b; --pn:#0f1318; --pn2:#161b22; --pn3:#1d242d; --ln:#252d37; --ln2:#334050;
+  --tx:#f1f5f9; --dim:#8a96a6; --acc:#ff7a1a; --acc2:#ffb066; --ok:#2ee59d; --bad:#ff3b4e; --warn:#ffc83d; --blu:#4db8ff; --cy:#3ce0ff;
+  --r:10px; --mono:ui-monospace,"JetBrains Mono","Fira Code",monospace;
+}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.35 system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
-header{display:flex;gap:10px;align-items:center;padding:6px 10px;background:var(--pn);border-bottom:1px solid var(--ln);flex-wrap:wrap}
-header .brand{font-weight:700;color:var(--acc);letter-spacing:.5px}
-main{display:grid;grid-template-columns:270px 1fr 410px;min-height:0}
-.col{overflow:auto;padding:8px;min-height:0}
-.left{border-right:1px solid var(--ln)}
-.right{border-left:1px solid var(--ln);display:flex;flex-direction:column;gap:8px}
-.box{background:var(--pn);border:1px solid var(--ln);border-radius:6px;padding:8px;margin-bottom:8px}
-.box h3{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
-button{background:var(--pn2);color:var(--tx);border:1px solid var(--ln);border-radius:4px;padding:5px 9px;font:inherit;cursor:pointer}
-button:hover:not(:disabled){border-color:var(--acc)}
-button:disabled{opacity:.4;cursor:default}
-button.pri{background:#2b3f2f;border-color:#3d6b4a}
-button.warnb{background:#4a3a14;border-color:#8a6a1a}
-#stopBtn{background:#7a1010;border-color:#c22;color:#fff;font-weight:700;padding:6px 18px}
-#stopBtn:hover{background:#a01515}
-input,select{background:#0c0f12;color:var(--tx);border:1px solid var(--ln);border-radius:4px;padding:4px 5px;font:inherit}
-input[type=number]{width:72px}
-input[type=checkbox]{vertical-align:middle}
+body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#141a22 0%,var(--bg) 60%);color:var(--tx);font:13px/1.4 Inter,"Segoe UI",system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#2a333e;border-radius:8px}
+header{display:flex;gap:10px;align-items:center;padding:8px 14px;background:linear-gradient(180deg,#121820,#0c1015);border-bottom:1px solid var(--ln);flex-wrap:wrap;box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:2}
+.brand{font-weight:800;letter-spacing:3px;font-size:15px;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:6px}
+.sep{width:1px;height:24px;background:var(--ln)}
+main{display:grid;grid-template-columns:300px 1fr 400px;min-height:0}
+.col{overflow:auto;padding:10px;min-height:0}
+.left{border-right:1px solid var(--ln);background:rgba(10,13,17,.6)}
+.right{border-left:1px solid var(--ln);display:flex;flex-direction:column;gap:10px;background:rgba(10,13,17,.6)}
+.box{background:linear-gradient(180deg,var(--pn2),var(--pn));border:1px solid var(--ln);border-radius:var(--r);padding:10px 11px;margin-bottom:10px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 6px 20px rgba(0,0,0,.35)}
+.box h3,.sub{margin:0 0 8px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.6px;color:var(--dim);display:flex;align-items:center;gap:7px}
+.box h3::before,.sub::before{content:"";width:3px;height:11px;border-radius:2px;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+button{background:linear-gradient(180deg,#232b35,#1a2129);color:var(--tx);border:1px solid var(--ln2);border-radius:8px;padding:6px 11px;font:inherit;font-weight:500;cursor:pointer;transition:border-color .12s,background .12s,box-shadow .12s,transform .05s}
+button:hover:not(:disabled){border-color:var(--acc);box-shadow:0 0 0 1px rgba(255,122,26,.25),0 0 14px rgba(255,122,26,.15)}
+button:active:not(:disabled){transform:translateY(1px)}
+button:disabled{opacity:.35;cursor:default}
+button.pri{background:linear-gradient(180deg,#1f9d62,#167a4b);border-color:#2ee59d;color:#fff;font-weight:700}
+button.pri:hover:not(:disabled){box-shadow:0 0 16px rgba(46,229,157,.35)}
+button.warnb{background:linear-gradient(180deg,#8a6512,#6a4c0c);border-color:#ffc83d;color:#fff;font-weight:600}
+button.icon{padding:6px 9px}
+#stopBtn{background:linear-gradient(180deg,#e0162b,#a50d1d);border-color:#ff6b7a;color:#fff;font-weight:800;letter-spacing:2px;padding:8px 26px;border-radius:9px;box-shadow:0 0 22px rgba(255,59,78,.45)}
+#stopBtn:hover{box-shadow:0 0 30px rgba(255,59,78,.7)}
+input,select{background:#090c10;color:var(--tx);border:1px solid var(--ln2);border-radius:7px;padding:5px 7px;font:inherit;outline:none;transition:border-color .12s,box-shadow .12s}
+input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,122,26,.18)}
+input[type=number]{width:80px;font-family:var(--mono)}
+input[type=checkbox]{vertical-align:middle;accent-color:var(--acc);width:14px;height:14px}
 label{color:var(--dim)}
-.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0}
-.grid2{display:grid;grid-template-columns:1fr auto;gap:4px 6px;align-items:center}
-.badge{padding:3px 9px;border-radius:10px;font-weight:700;background:#333;min-width:64px;text-align:center}
-.st-Idle{background:#1f4d33;color:#9ff0c4}.st-Run{background:#5a3a10;color:#ffd08a}.st-Hold{background:#5a5110;color:#fff08a}
-.st-Alarm{background:#6a1414;color:#ffb3b3}.st-Jog{background:#123a5a;color:#a8d4ff}.st-Home{background:#123a5a;color:#a8d4ff}.st-Door{background:#6a1414;color:#ffb3b3}
-.pos{font:600 14px ui-monospace,monospace}
-.pos small{color:var(--dim);font-weight:400}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:5px 0}
+.grid2{display:grid;grid-template-columns:1fr auto;gap:5px 8px;align-items:center}
+.badge{padding:4px 12px;border-radius:20px;font-weight:800;font-size:12px;letter-spacing:.5px;background:#2a2f36;color:#aab4c0;min-width:74px;text-align:center;border:1px solid transparent}
+.st-Idle{background:rgba(46,229,157,.14);color:var(--ok);border-color:rgba(46,229,157,.5);box-shadow:0 0 12px rgba(46,229,157,.25)}
+.st-Run{background:rgba(255,122,26,.16);color:var(--acc2);border-color:var(--acc);box-shadow:0 0 14px rgba(255,122,26,.4)}
+.st-Hold{background:rgba(255,200,61,.15);color:var(--warn);border-color:var(--warn)}
+.st-Alarm,.st-Door{background:rgba(255,59,78,.18);color:#ff8a96;border-color:var(--bad);box-shadow:0 0 14px rgba(255,59,78,.4)}
+.st-Jog,.st-Home{background:rgba(77,184,255,.15);color:var(--blu);border-color:var(--blu)}
+.dro{display:flex;gap:12px;align-items:baseline;font-family:var(--mono);background:#090c10;border:1px solid var(--ln);border-radius:8px;padding:4px 10px}
+.dro b{font-size:15px;color:#fff;font-weight:700}
+.dro i{font-style:normal;color:var(--acc);font-weight:700;margin-right:3px}
+.dro small{color:var(--dim)}
+.pos{font:700 14px var(--mono)}
 #mapWrap{position:relative;min-width:0;min-height:0}
 #map{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
-#mapHint{position:absolute;left:8px;bottom:6px;color:var(--dim);font-size:11px;pointer-events:none}
-#hover{position:absolute;right:8px;bottom:6px;color:var(--dim);font:11px ui-monospace,monospace;pointer-events:none}
-.jog{display:grid;grid-template-columns:repeat(3,44px);gap:4px;justify-content:start}
-.jog button{height:38px;padding:0}
-#console{flex:1;min-height:120px;overflow:auto;background:#0a0d10;border:1px solid var(--ln);border-radius:6px;padding:6px;font:12px/1.35 ui-monospace,monospace;white-space:pre-wrap;word-break:break-all}
-#console .bad{color:var(--bad)}#console .warn{color:var(--warn)}#console .dim{color:var(--dim)}#console .acc{color:var(--acc)}#console .tx{color:var(--blu)}
-#cmd{width:100%}
-progress{width:100%;height:10px}
-#alarmBar{display:none;background:#6a1414;color:#fff;padding:6px 10px;border-radius:6px;margin-bottom:8px}
-#alarmBar button{margin-left:8px}
+#mapHint{position:absolute;left:10px;bottom:8px;color:var(--dim);font-size:11px;pointer-events:none;background:rgba(7,9,11,.7);padding:3px 8px;border-radius:6px}
+#hover{position:absolute;right:10px;bottom:8px;color:var(--tx);font:11px var(--mono);pointer-events:none;background:rgba(7,9,11,.7);padding:3px 8px;border-radius:6px}
+.jog{display:grid;grid-template-columns:repeat(3,52px);gap:5px;justify-content:start}
+.jog button{height:42px;padding:0;font-size:15px}
+#console{flex:1;min-height:120px;overflow:auto;background:#05070a;border:1px solid var(--ln);border-radius:var(--r);padding:8px;font:12px/1.45 var(--mono);white-space:pre-wrap;word-break:break-all}
+#console .bad{color:var(--bad)}#console .warn{color:var(--warn)}#console .dim{color:#6b7684}#console .acc{color:var(--acc2)}#console .tx{color:var(--blu)}
+#cmd{width:100%;font-family:var(--mono)}
+progress{width:100%;height:8px;-webkit-appearance:none;appearance:none;border:0;border-radius:6px;background:#0a0d11;overflow:hidden}
+progress::-webkit-progress-bar{background:#0a0d11}
+progress::-webkit-progress-value{background:linear-gradient(90deg,var(--acc),var(--acc2));box-shadow:0 0 10px var(--acc)}
+progress::-moz-progress-bar{background:linear-gradient(90deg,var(--acc),var(--acc2))}
+#alarmBar{display:none;background:linear-gradient(180deg,#5a0f18,#3d0a10);border:1px solid var(--bad);color:#fff;padding:8px 10px;border-radius:var(--r);margin-bottom:10px;box-shadow:0 0 18px rgba(255,59,78,.35);font-weight:600}
+#alarmBar button{margin:6px 6px 0 0}
 .muted{color:var(--dim);font-size:11px}
-#thumb{max-width:100%;max-height:140px;object-fit:contain;image-rendering:pixelated;background:#fff;display:none;margin-top:6px;border-radius:3px}
-hr{border:0;border-top:1px solid var(--ln);margin:8px 0}
+#thumb{max-width:100%;max-height:140px;object-fit:contain;image-rendering:pixelated;background:#fff;display:none;margin-top:6px;border-radius:6px}
+hr{border:0;border-top:1px solid var(--ln);margin:10px 0}
+.runbar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.runbar button{padding:10px 0;font-size:14px}
+.ov{display:grid;grid-template-columns:50px 46px repeat(5,1fr);gap:4px;align-items:center;margin:4px 0}
+.ov b{font-size:12px}.ov .pos{font-size:12px;color:var(--ok)}
+.ov button{padding:4px 0;font-size:11px;font-family:var(--mono)}
+.ov3{grid-template-columns:50px 46px repeat(3,1fr)}
+/* settings modal */
+#settingsModal{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:10}
+#settingsModal.open{display:flex}
+.modal{width:min(720px,94vw);max-height:90vh;overflow:auto;background:linear-gradient(180deg,#141a21,#0d1116);border:1px solid var(--ln2);border-radius:14px;padding:18px 20px;box-shadow:0 30px 80px rgba(0,0,0,.7)}
+.modal h2{margin:0 0 14px;font-size:16px;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.mgrid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header>
   <span class="brand">BURNER</span>
   <select id="mode" title="Bridge = burner_bridge.py (any browser). Web Serial = Chrome/Firefox built-in."><option value="bridge">Bridge</option><option value="webserial">Web Serial</option></select>
-  <select id="portSel" style="max-width:260px"><option value="">(refresh)</option></select>
-  <button id="portRefresh" title="Refresh port list">&#8635;</button>
+  <select id="portSel" style="max-width:240px"><option value="">(refresh)</option></select>
+  <button id="portRefresh" class="icon" title="Refresh port list">&#8635;</button>
   <select id="baud"><option>115200</option><option>250000</option><option>230400</option><option>57600</option><option>9600</option></select>
   <button id="connBtn" class="pri">Connect</button>
+  <span class="sep"></span>
   <span id="stateBadge" class="badge">Offline</span>
-  <span class="pos">W X <span id="wx">-</span> Y <span id="wy">-</span> <small>in</small></span>
-  <span class="pos"><small>M X <span id="mx">-</span> Y <span id="my">-</span> in &nbsp;F <span id="fs">-</span> S <span id="ss">-</span></small></span>
+  <span class="dro"><span><i>X</i><b id="wx">-</b></span><span><i>Y</i><b id="wy">-</b></span><small>in work</small></span>
+  <span class="dro"><small>M</small><small id="mx">-</small><small id="my">-</small><small>&nbsp;F</small><small id="fs">-</small><small>mm/s &nbsp;S</small><small id="ss">-</small></span>
   <span style="flex:1"></span>
-  <span class="muted">Esc = STOP</span>
-  <button id="stopBtn" title="Feed hold, then soft reset. Laser off, job killed, no reboot.">STOP</button>
+  <button id="gearBtn" class="icon" title="Settings">&#9881; Settings</button>
+  <button id="stopBtn" title="Feed hold, then soft reset. Laser off, job killed, no reboot. (Esc)">STOP</button>
 </header>
 <main>
   <div class="col left">
-    <div id="alarmBar">ALARM: commands locked. <button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
+    <div id="alarmBar">ALARM: commands locked.<br><button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
     <div class="box">
       <h3>Machine</h3>
       <div class="row">
@@ -82,7 +116,7 @@ hr{border:0;border-top:1px solid var(--ln);margin:8px 0}
       </div>
     </div>
     <div class="box">
-      <h3>Jog (arrow keys too)</h3>
+      <h3>Jog</h3>
       <div class="jog">
         <button data-j="-1,1">&#8598;</button><button data-j="0,1">&#9650;</button><button data-j="1,1">&#8599;</button>
         <button data-j="-1,0">&#9664;</button><button id="jogCancel" title="Cancel jog">&#9632;</button><button data-j="1,0">&#9654;</button>
@@ -93,36 +127,39 @@ hr{border:0;border-top:1px solid var(--ln);margin:8px 0}
         <select id="jogStep"><option>0.01</option><option>0.05</option><option selected>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select>
         <label>in</label>
       </div>
-      <div class="row"><label>Feed</label><input id="jogFeed" type="number" value="100" step="10"><label>in/min</label></div>
-      <div class="muted">Double-click the map to rapid there (laser off).</div>
+      <div class="row"><label>Feed</label><input id="jogFeedS" type="number" value="40" step="5" style="width:64px"><label>mm/s</label></div>
+      <div class="muted">Arrow keys jog. Double-click the map to rapid there (laser off).</div>
     </div>
     <div class="box">
-      <h3>Bed</h3>
-      <div class="grid2">
-        <label>Width (in)</label><input id="bedW" type="number" step="0.125" value="15.75">
-        <label>Height (in)</label><input id="bedH" type="number" step="0.125" value="15.75">
-        <label>Machine X at bed left (in)</label><input id="bedX0" type="number" step="0.125" value="0">
-        <label>Machine Y at bed bottom (in)</label><input id="bedY0" type="number" step="0.125" value="0">
+      <h3>Run</h3>
+      <div class="runbar">
+        <button id="frameBtn">Frame</button>
+        <button id="startBtn" class="pri">&#9654; Start</button>
+        <button id="pauseBtn" class="warnb">Pause</button>
       </div>
-      <div class="muted" style="margin-top:4px">Set these to your Ortur's real travel. If homing makes MPos negative, set the offsets negative to match.</div>
-    </div>
-    <div class="box">
-      <h3>Frame</h3>
-      <div class="row"><label>Feed</label><input id="frameFeed" type="number" value="150" step="10"><label>in/min</label></div>
-      <div class="row"><label><input id="frameLaser" type="checkbox"> Low-power laser while framing</label></div>
-      <div class="row"><label>Frame S</label><input id="frameS" type="number" value="10" step="1"><span class="muted">of $30 max</span></div>
-      <div class="muted">Keep frame S low enough that it can't mark the work. Goggles on.</div>
-    </div>
-    <div class="box">
-      <h3>Controller</h3>
-      <div id="ctlInfo" class="muted">Not connected.</div>
-      <div class="row"><button id="settingsBtn">Read $$</button><button id="resyncBtn" title="Clear the sender's buffer count if it ever desyncs">Resync buffer</button></div>
+      <div style="margin-top:8px"><progress id="prog" value="0" max="1"></progress></div>
+      <div id="progTxt" class="muted" style="font-family:var(--mono)">-</div>
+      <div class="row"><label><input id="haltErr" type="checkbox" checked> Pause on G-code error</label></div>
+      <hr>
+      <div class="sub">Live overrides</div>
+      <div class="ov"><b>Speed</b><span id="ovF" class="pos">-</span>
+        <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
+      <div class="ov"><b>Power</b><span id="ovS" class="pos">-</span>
+        <button data-ov="155">-10</button><button data-ov="157">-1</button><button data-ov="153">100</button><button data-ov="156">+1</button><button data-ov="154">+10</button></div>
+      <div class="ov ov3"><b>Rapid</b><span id="ovR" class="pos">-</span>
+        <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
+      <div class="muted">Works mid-burn, GRBL clamps 10-200%. Keys: [ ] speed, - = power, Space pause.</div>
+      <hr>
+      <div class="sub">Frame</div>
+      <div class="row"><label>Feed</label><input id="frameFeedS" type="number" value="60" step="5" style="width:64px"><label>mm/s</label></div>
+      <div class="row"><label><input id="frameLaser" type="checkbox"> Low-power laser</label><label>S</label><input id="frameS" type="number" value="10" step="1" style="width:60px"></div>
+      <div class="muted">Keep frame S too low to mark the work. Goggles on.</div>
     </div>
   </div>
 
   <div id="mapWrap">
     <canvas id="map"></canvas>
-    <div id="mapHint">Scroll = zoom, drag = pan, F = fit, double-click = go there</div>
+    <div id="mapHint">Scroll zoom &middot; drag pan &middot; F fit &middot; double-click go there</div>
     <div id="hover"></div>
   </div>
 
@@ -130,8 +167,8 @@ hr{border:0;border-top:1px solid var(--ln);margin:8px 0}
     <div class="box" style="margin:0">
       <h3>Job</h3>
       <div class="row">
+        <button id="loadImgBtn">+ Image / DXF / SVG</button>
         <button id="loadGcBtn">Load G-code</button>
-        <button id="loadImgBtn">Add image / DXF / SVG</button>
         <input id="gcFile" type="file" accept=".nc,.gcode,.gc,.ngc,.tap,.txt" hidden>
         <input id="imgFile" type="file" accept="image/*,.svg,.dxf" multiple hidden>
       </div>
@@ -139,10 +176,10 @@ hr{border:0;border-top:1px solid var(--ln);margin:8px 0}
       <div id="layoutNote" class="muted" style="color:var(--warn);display:none">Layout changed. It regenerates on Start or Frame.</div>
       <div id="rasterBox">
         <hr>
-        <h3 style="margin:0 0 4px;font-size:11px;letter-spacing:1px;color:var(--dim)">LAYOUT</h3>
-        <div id="objNone" class="muted">Load an image, then click it on the map. Drag = move, corners = scale (Shift flips aspect lock), top dot = rotate (Shift snaps 15&deg;), Del = delete, arrows nudge 0.01 in (Shift 0.1).</div>
+        <div class="sub">Layout</div>
+        <div id="objNone" class="muted">Click an object on the map. Drag = move, corners = scale (Shift flips aspect lock), top dot = rotate (Shift snaps 15&deg;), Del = delete, arrows nudge 0.01 in (Shift 0.1).</div>
         <div id="objBox" style="display:none">
-          <div id="objName" style="font-weight:600;margin-bottom:4px;word-break:break-all"></div>
+          <div id="objName" style="font-weight:700;margin-bottom:6px;word-break:break-all;color:var(--acc2)"></div>
           <div class="grid2">
             <label>Center X (in)</label><input id="oX" type="number" step="0.01">
             <label>Center Y (in)</label><input id="oY" type="number" step="0.01">
@@ -151,55 +188,84 @@ hr{border:0;border-top:1px solid var(--ln);margin:8px 0}
             <label>Rotate (deg)</label><input id="oR" type="number" step="1">
           </div>
           <div class="row"><label><input id="oLock" type="checkbox" checked> Lock aspect</label></div>
-          <div id="vecProps" class="grid2" style="display:none">
-            <label>Vector power %</label><input id="vP" type="number" step="1">
-            <label>Vector speed (in/min)</label><input id="vF" type="number" step="1">
-            <label>Passes</label><input id="vN" type="number" step="1" min="1">
+          <div id="vecProps" style="display:none">
+            <div class="row"><select id="vPreset" style="flex:1"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
+            <div class="grid2">
+              <label>Vector power %</label><input id="vP" type="number" step="1">
+              <label>Vector speed (mm/s)</label><input id="vF" type="number" step="1">
+              <label>Passes</label><input id="vN" type="number" step="1" min="1">
+            </div>
+            <div class="row"><input id="vPresetName" placeholder="Name, e.g. Poplar score lines" style="flex:1"><button id="vSaveAs">Save as</button></div>
           </div>
-          <div class="row"><button id="cropBtn">Crop</button><button id="uncropBtn">Uncrop</button><button id="dupBtn">Duplicate</button><button id="toZeroBtn" title="Put the bottom-left corner on work zero">Move to W0</button><button id="delBtn" class="warnb">Delete</button></div>
+          <div class="row"><button id="cropBtn">Crop</button><button id="uncropBtn">Uncrop</button><button id="dupBtn">Duplicate</button><button id="toZeroBtn" title="Put the bottom-left corner on work zero">To W0</button><button id="delBtn" class="warnb">Delete</button></div>
         </div>
         <hr>
+        <div class="sub">Raster</div>
+        <div class="row"><select id="rPreset" style="flex:1"></select><button id="rPresetDel" class="icon" title="Delete this preset">Del</button></div>
         <div class="grid2">
           <label>Lines per inch</label><input id="rLpi" type="number" step="1" value="254">
-          <label>Speed (in/min)</label><input id="rFeed" type="number" step="10" value="120">
+          <label>Speed (mm/s)</label><input id="rFeedS" type="number" step="5" value="50">
           <label>Min power %</label><input id="rPmin" type="number" step="1" value="0">
           <label>Max power %</label><input id="rPmax" type="number" step="1" value="60">
           <label>Overscan (in)</label><input id="rOver" type="number" step="0.01" value="0.05">
           <label>Skip below darkness %</label><input id="rThresh" type="number" step="1" value="3">
         </div>
         <div class="row">
-          <label><input id="rDither" type="checkbox"> Dither (1-bit)</label>
+          <label><input id="rDither" type="checkbox"> Dither</label>
           <label><input id="rInvert" type="checkbox"> Invert</label>
           <label><input id="rBidir" type="checkbox" checked> Bidirectional</label>
         </div>
-        <div class="row"><button id="genBtn" class="pri">Generate layout</button><button id="saveGcBtn">Save .nc</button></div>
+        <div class="row"><input id="rPresetName" placeholder="Name, e.g. Poplar dithered photo" style="flex:1"><button id="rSaveAs">Save as</button></div>
+        <div class="row"><button id="genBtn" class="pri">Generate</button><button id="saveGcBtn">Save .nc</button></div>
         <img id="thumb" alt="">
-        <div class="muted">Positions are work coordinates (W0 = blue corner on the map). M4 dynamic power. Power % is of $30.</div>
+        <div class="muted">Positions are work coords (W0 = blue corner). M4 dynamic power, % of $30.</div>
       </div>
-      <hr>
-      <div class="row">
-        <button id="frameBtn">Frame</button>
-        <button id="startBtn" class="pri">Start</button>
-        <button id="pauseBtn" class="warnb">Pause</button>
-        <label><input id="haltErr" type="checkbox" checked> Pause on error</label>
-      </div>
-      <div class="box" style="margin:6px 0;background:var(--pn2)">
-        <h3>Live overrides (work mid-burn)</h3>
-        <div class="row"><b style="width:52px">Speed</b><span id="ovF" class="pos" style="width:48px">-</span>
-          <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
-        <div class="row"><b style="width:52px">Power</b><span id="ovS" class="pos" style="width:48px">-</span>
-          <button data-ov="155">-10</button><button data-ov="157">-1</button><button data-ov="153">100</button><button data-ov="156">+1</button><button data-ov="154">+10</button></div>
-        <div class="row"><b style="width:52px">Rapid</b><span id="ovR" class="pos" style="width:48px">-</span>
-          <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
-        <div class="muted">GRBL clamps speed and power to 10-200%. Keys: [ ] speed -/+10, - = power -/+10, Space pause/resume.</div>
-      </div>
-      <progress id="prog" value="0" max="1"></progress>
-      <div id="progTxt" class="muted">-</div>
     </div>
     <div id="console"></div>
     <input id="cmd" placeholder="Send command (Enter). Up/Down = history" autocomplete="off">
   </div>
 </main>
+
+<div id="settingsModal">
+  <div class="modal">
+    <h2>Settings <button id="closeSettings" class="icon">&#10005;</button></h2>
+    <div class="mgrid">
+      <div class="box">
+        <h3>Bed</h3>
+        <div class="grid2">
+          <label>Width (in)</label><input id="bedW" type="number" step="0.125" value="15.75">
+          <label>Height (in)</label><input id="bedH" type="number" step="0.125" value="15.75">
+          <label>Machine X at bed left (in)</label><input id="bedX0" type="number" step="0.125" value="0">
+          <label>Machine Y at bed bottom (in)</label><input id="bedY0" type="number" step="0.125" value="0">
+        </div>
+        <div class="row"><button id="useTravelBtn">Use controller travel ($130/$131)</button></div>
+        <div class="muted">If homing makes MPos negative, set the offsets negative to match.</div>
+      </div>
+      <div class="box">
+        <h3>Motion (controller)</h3>
+        <div class="grid2">
+          <label>X accel (mm/s&sup2;) $120</label><input id="accX" type="number" step="50">
+          <label>Y accel (mm/s&sup2;) $121</label><input id="accY" type="number" step="50">
+          <label>X max rate (mm/s) $110</label><input id="maxX" type="number" step="5">
+          <label>Y max rate (mm/s) $111</label><input id="maxY" type="number" step="5">
+        </div>
+        <div class="row"><button id="writeCfgBtn" class="warnb">Write to controller</button></div>
+        <div class="muted">Read from $$ on connect. Writing saves to the board's EEPROM. Too much accel = skipped steps and a shifted burn, so creep up on it.</div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Controller</h3>
+        <div id="ctlInfo" class="muted">Not connected.</div>
+        <div class="row"><button id="settingsBtn">Read $$</button><button id="resyncBtn" title="Clear the sender's buffer count if it ever desyncs">Resync buffer</button></div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Material presets</h3>
+        <div id="presetList" class="muted">None saved yet.</div>
+        <div class="row"><button id="presetExport">Export presets</button><button id="presetImport">Import presets</button><input id="presetFile" type="file" accept=".json" hidden></div>
+        <div class="muted">Presets live in this browser. Export them for backup or to move machines.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script id="core">
 // ---------- Pure logic (no DOM) ----------
@@ -355,7 +421,7 @@ const ERR = {1:'Expected command letter',2:'Bad number format',3:'Invalid $ stat
 const ALM = {1:'Hard limit hit. Position lost, rehome.',2:'Soft limit: target outside machine travel.',3:'Reset while moving. Position lost, rehome or $X.',6:'Homing failed: reset during cycle.',7:'Homing failed: door opened.',8:'Homing failed: pull-off did not clear switch.',9:'Homing failed: switch not found.'};
 
 // ---------- persisted settings ----------
-const PERSIST = ['mode','baud','jogStep','jogFeed','bedW','bedH','bedX0','bedY0','frameFeed','frameS','rLpi','rFeed','rPmin','rPmax','rOver','rThresh','rDither','rInvert','rBidir','haltErr'];
+const PERSIST = ['mode','baud','jogStep','jogFeedS','bedW','bedH','bedX0','bedY0','frameFeedS','frameS','rLpi','rFeedS','rPmin','rPmax','rOver','rThresh','rDither','rInvert','rBidir','haltErr'];
 function loadPrefs(){ try{ const p = JSON.parse(localStorage.getItem('burner.prefs')||'{}'); for(const k of PERSIST){ if(p[k]===undefined) continue; const el=$(k); if(el.type==='checkbox') el.checked=p[k]; else el.value=p[k]; } }catch{} }
 function savePrefs(){ try{ const p={}; for(const k of PERSIST){ const el=$(k); p[k]= el.type==='checkbox'?el.checked:el.value; } localStorage.setItem('burner.prefs',JSON.stringify(p)); }catch{} }
 loadPrefs();
@@ -551,6 +617,7 @@ function updateCtlInfo(){
   if(settings[130]) parts.push('travel '+(+settings[130]/MM).toFixed(2)+' x '+(+settings[131]/MM).toFixed(2)+' in');
   parts.push('RX buffer '+rxSize);
   $('ctlInfo').innerHTML = parts.join('<br>');
+  fillMotion();
   if(settings[13]==='1') log('Controller reports in inches ($13=1). This sender expects mm. Send $13=0.','warn');
 }
 function smax(){ return +(settings[30]||1000); }
@@ -611,7 +678,7 @@ function frameJob(){
   if(layoutStale && !generateLayout()) return;
   if(!job.prev){ log('Load a job first','warn'); return; }
   const b = job.prev.burn || job.prev.all; if(!b) return;
-  const f = (+$('frameFeed').value||150)*MM;
+  const f = (+$('frameFeedS').value||60)*60;
   const L = $('frameLaser').checked;
   const S = Math.max(0, Math.min(smax(), +$('frameS').value||0));
   const p = (x,y)=>'X'+fmt(x)+' Y'+fmt(y);
@@ -684,8 +751,8 @@ function addVec(name, polys){
   for(const p of polys) for(let i=0;i<p.length;i+=2){ x0=Math.min(x0,p[i]); x1=Math.max(x1,p[i]); y0=Math.min(y0,p[i+1]); y1=Math.max(y1,p[i+1]); pts++; }
   for(const p of polys) for(let i=0;i<p.length;i+=2){ p[i]-=x0; p[i+1]-=y0; }
   const w=Math.max(x1-x0,0.01), h=Math.max(y1-y0,0.01);
-  addObj({type:'vec', name, polys, cx:0, cy:0, cw:w, ch:h, sx:1, sy:1, power:100, feed:20, passes:1});
-  log('Vector '+name+': '+polys.length+' paths, '+pts+' pts, '+(w/MM).toFixed(3)+' x '+(h/MM).toFixed(3)+' in. Default 100% / 20 in/min / 1 pass, dial it in on scrap.','dim');
+  addObj({type:'vec', name, polys, cx:0, cy:0, cw:w, ch:h, sx:1, sy:1, power:100, feed:8, passes:1});
+  log('Vector '+name+': '+polys.length+' paths, '+pts+' pts, '+(w/MM).toFixed(3)+' x '+(h/MM).toFixed(3)+' in. Default 100% / 8 mm/s / 1 pass, dial it in on scrap.','dim');
 }
 
 // Douglas-Peucker on flat [x,y,...]
@@ -849,15 +916,15 @@ function syncProps(){
   $('cropBtn').disabled = !im; $('uncropBtn').disabled = !im;
   $('cropBtn').textContent = cropMode ? 'Done cropping' : 'Crop';
   $('vecProps').style.display = im ? 'none' : '';
-  if(!im){ set('vP',sel.power); set('vF',sel.feed); set('vN',sel.passes); }
+  if(!im){ set('vP',sel.power); set('vF',sel.feed); set('vN',sel.passes); fillPresetSel('vPreset','vector', sel.preset||''); }
 }
 const numIn=(id,fn)=>$(id).addEventListener('change',()=>{ const v=parseFloat($(id).value); if(sel && isFinite(v)){ fn(v); layoutChanged(); } });
 numIn('oX',v=>sel.x=v*MM); numIn('oY',v=>sel.y=v*MM); numIn('oR',v=>sel.rot=v);
 numIn('oW',v=>{ if(v<=0) return; const f=v*MM/oW(sel); sel.sx*=f; if($('oLock').checked) sel.sy*=f; });
 numIn('oH',v=>{ if(v<=0) return; const f=v*MM/oH(sel); sel.sy*=f; if($('oLock').checked) sel.sx*=f; });
-numIn('vP',v=>sel.power=Math.max(0,Math.min(100,v)));
-numIn('vF',v=>sel.feed=Math.max(0.1,v));
-numIn('vN',v=>sel.passes=Math.max(1,Math.round(v)));
+numIn('vP',v=>{ sel.power=Math.max(0,Math.min(100,v)); sel.preset=''; });
+numIn('vF',v=>{ sel.feed=Math.max(0.1,v); sel.preset=''; });
+numIn('vN',v=>{ sel.passes=Math.max(1,Math.round(v)); sel.preset=''; });
 $('cropBtn').onclick=()=>{ if(sel&&sel.type==='img'){ cropMode=!cropMode; syncProps(); dirty=true; } };
 $('uncropBtn').onclick=()=>{
   if(!sel||sel.type!=='img') return; const o=sel;
@@ -935,13 +1002,14 @@ function generateLayout(){
     for(let i=0;i<dark.length;i++){ const v=255-Math.round(Math.max(0,Math.min(1,dark[i]))*255); t.data[i*4]=t.data[i*4+1]=t.data[i*4+2]=v; t.data[i*4+3]=255; }
     g.putImageData(t,0,0); $('thumb').src=c.toDataURL(); $('thumb').style.display='block';
     const SM=smax();
-    lines.push(...Core.rasterGcode(dark,cols,rows,{
-      pitch:p, feed:(+$('rFeed').value||100)*MM, smin:SM*(+$('rPmin').value||0)/100, smax:SM*(+$('rPmax').value||0)/100,
-      over:(+$('rOver').value||0)*MM, thresh:(+$('rThresh').value||0)/100, bidir:$('rBidir').checked, ox:B.x0, oy:B.y1-rows*p }));
+    const rg=Core.rasterGcode(dark,cols,rows,{
+      pitch:p, feed:(+$('rFeedS').value||50)*60, smin:SM*(+$('rPmin').value||0)/100, smax:SM*(+$('rPmax').value||0)/100,
+      over:(+$('rOver').value||0)*MM, thresh:(+$('rThresh').value||0)/100, bidir:$('rBidir').checked, ox:B.x0, oy:B.y1-rows*p });
+    for(let i=0;i<rg.length;i++) lines.push(rg[i]);
     pitch=p;
   } else $('thumb').style.display='none';
   for(const o of vecs){
-    const S=Math.round(smax()*o.power/100), F=o.feed*MM;
+    const S=Math.round(smax()*o.power/100), F=o.feed*60;
     const polys=nnOrder(o.polys.map(pl=>{ const r=[]; for(let i=0;i<pl.length;i+=2){ const [x,y]=toWorld(o,(pl[i]-o.cw/2)*o.sx,(pl[i+1]-o.ch/2)*o.sy); r.push(x,y); } return r; }));
     lines.push('; vector '+o.name+' S'+S+' F'+fmt(F)+' x'+o.passes, 'M4 S'+S, 'G1 F'+fmt(F));
     for(let k=0;k<o.passes;k++) for(const p of polys){
@@ -962,6 +1030,79 @@ $('saveGcBtn').onclick = ()=>{
   a.download = (job.name.replace(/[^\w.-]+/g,'_')||'job')+'.nc'; a.click();
 };
 
+// ---------- material presets ----------
+const PRE_KEY='burner.presets';
+let presets=[]; try{ presets=JSON.parse(localStorage.getItem(PRE_KEY)||'[]'); }catch{}
+function savePresets(){ try{ localStorage.setItem(PRE_KEY, JSON.stringify(presets)); }catch(e){ log('Could not save presets: '+e.message,'bad'); } listPresets(); }
+const RFIELDS=['rLpi','rFeedS','rPmin','rPmax','rOver','rThresh','rDither','rInvert','rBidir'];
+function fillPresetSel(id,type,pick){
+  const el=$(id), cur=pick!==undefined?pick:el.value; el.innerHTML='<option value="">Material preset...</option>';
+  presets.filter(p=>p.type===type).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; el.appendChild(o); });
+  el.value=[...el.options].some(o=>o.value===cur)?cur:'';
+}
+function rasterDesc(v){ return v.rLpi+' lpi, '+v.rFeedS+' mm/s, '+v.rPmin+'-'+v.rPmax+'%'+(v.rDither?', dithered':'')+(v.rInvert?', inverted':''); }
+function listPresets(){
+  fillPresetSel('rPreset','raster'); fillPresetSel('vPreset','vector');
+  $('presetList').innerHTML = presets.length ? presets.map(p=>'<div><b style="color:var(--tx)">'+p.name.replace(/</g,'&lt;')+'</b> <span>('+p.type+': '+(p.type==='raster'?rasterDesc(p.v):p.v.power+'%, '+p.v.feed+' mm/s, '+p.v.passes+' pass'+(p.v.passes>1?'es':''))+')</span></div>').join('') : 'None saved yet.';
+}
+function upsert(type,name,v){
+  const i=presets.findIndex(p=>p.type===type&&p.name===name);
+  if(i>=0) presets[i].v=v; else presets.push({type,name,v});
+  savePresets(); log((i>=0?'Updated':'Saved')+' '+type+' preset "'+name+'"','acc');
+}
+$('rSaveAs').onclick=()=>{
+  const name=$('rPresetName').value.trim(); if(!name){ log('Type a name for the preset first','warn'); $('rPresetName').focus(); return; }
+  const v={}; for(const id of RFIELDS){ const el=$(id); v[id]= el.type==='checkbox'?el.checked:+el.value; }
+  upsert('raster',name,v); fillPresetSel('rPreset','raster',name); $('rPresetName').value='';
+};
+$('rPreset').onchange=()=>{
+  const p=presets.find(p=>p.type==='raster'&&p.name===$('rPreset').value); if(!p) return;
+  for(const id of RFIELDS){ if(p.v[id]===undefined) continue; const el=$(id); if(el.type==='checkbox') el.checked=p.v[id]; else el.value=p.v[id]; }
+  savePrefs(); if(objs.some(o=>o.type==='img')) layoutChanged(); log('Raster preset: '+p.name+' ('+rasterDesc(p.v)+')','dim');
+};
+$('rPresetDel').onclick=()=>{ const n=$('rPreset').value; if(!n) return; presets=presets.filter(p=>!(p.type==='raster'&&p.name===n)); savePresets(); log('Deleted raster preset "'+n+'"','dim'); };
+$('vSaveAs').onclick=()=>{
+  if(!sel||sel.type!=='vec') return;
+  const name=$('vPresetName').value.trim(); if(!name){ log('Type a name for the preset first','warn'); $('vPresetName').focus(); return; }
+  upsert('vector',name,{power:sel.power,feed:sel.feed,passes:sel.passes}); fillPresetSel('vPreset','vector',name); $('vPresetName').value='';
+};
+$('vPreset').onchange=()=>{
+  const p=presets.find(p=>p.type==='vector'&&p.name===$('vPreset').value); if(!p||!sel||sel.type!=='vec') return;
+  sel.power=p.v.power; sel.feed=p.v.feed; sel.passes=p.v.passes; sel.preset=p.name; layoutChanged();
+};
+$('vPresetDel').onclick=()=>{ const n=$('vPreset').value; if(!n) return; presets=presets.filter(p=>!(p.type==='vector'&&p.name===n)); savePresets(); };
+$('presetExport').onclick=()=>{
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(presets,null,2)],{type:'application/json'})); a.download='burner-presets.json'; a.click();
+};
+$('presetImport').onclick=()=>$('presetFile').click();
+$('presetFile').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ const arr=JSON.parse(await f.text()); let n=0; for(const p of arr) if(p&&p.name&&(p.type==='raster'||p.type==='vector')&&p.v){ const i=presets.findIndex(q=>q.type===p.type&&q.name===p.name); if(i>=0) presets[i]=p; else presets.push(p); n++; } savePresets(); log('Imported '+n+' presets','acc'); }
+  catch(err){ log('Import failed: '+err.message,'bad'); }
+  e.target.value='';
+};
+listPresets();
+RFIELDS.forEach(id=>$(id).addEventListener('change',()=>{ if(objs.some(o=>o.type==='img')) layoutChanged(); }));
+
+// ---------- settings modal ----------
+function openSettings(o){ $('settingsModal').classList.toggle('open', o); if(o) fillMotion(); }
+$('gearBtn').onclick=()=>openSettings(true);
+$('closeSettings').onclick=()=>openSettings(false);
+$('settingsModal').addEventListener('mousedown',e=>{ if(e.target.id==='settingsModal') openSettings(false); });
+const MOTION=[['accX',120,1],['accY',121,1],['maxX',110,1/60],['maxY',111,1/60]];
+function fillMotion(){ for(const [id,n,k] of MOTION){ if(document.activeElement!==$(id)) $(id).value = settings[n]!==undefined ? +(+settings[n]*k).toFixed(2) : ''; } }
+$('writeCfgBtn').onclick=()=>{
+  if(!canCommand()) return;
+  const cmds=[];
+  for(const [id,n,k] of MOTION){ const v=parseFloat($(id).value); if(!isFinite(v)||v<=0) continue; const raw=+(v/k).toFixed(3); if(settings[n]===undefined || Math.abs(+settings[n]-raw)>1e-6) cmds.push('$'+n+'='+raw); }
+  if(!cmds.length){ log('Nothing changed','dim'); return; }
+  queue(...cmds,'$$'); log('Writing '+cmds.join(' '),'warn');
+};
+$('useTravelBtn').onclick=()=>{
+  if(!settings[130]){ log('Read $$ first (connect to the laser)','warn'); return; }
+  $('bedW').value=(+settings[130]/MM).toFixed(3); $('bedH').value=(+settings[131]/MM).toFixed(3); savePrefs(); fitView();
+};
+
 // ---------- buttons ----------
 $('connBtn').onclick = ()=> connected ? disconnect('user') : connect();
 $('portRefresh').onclick = refreshPorts;
@@ -980,7 +1121,7 @@ $('pauseBtn').onclick = pauseJob;
 $('jogCancel').onclick = ()=>{ if(connected) rt(0x85); };
 function jog(dx,dy){
   if(!canCommand()) return;
-  const s = +$('jogStep').value*MM, f=(+$('jogFeed').value||100)*MM;
+  const s = +$('jogStep').value*MM, f=(+$('jogFeedS').value||40)*60;
   queue('$J=G91 G21'+(dx?' X'+fmt(dx*s):'')+(dy?' Y'+fmt(dy*s):'')+' F'+fmt(f));
 }
 document.querySelectorAll('[data-ov]').forEach(b=>b.onclick=()=>{ if(connected) rt(+b.dataset.ov); });
@@ -997,7 +1138,7 @@ $('cmd').addEventListener('keydown', e=>{
   else if(e.key==='ArrowDown'){ if(hi<hist.length-1){ hi++; $('cmd').value=hist[hi]; } else { hi=hist.length; $('cmd').value=''; } e.preventDefault(); }
 });
 document.addEventListener('keydown', e=>{
-  if(e.key==='Escape'){ stopAll(); if(cropMode){ cropMode=false; } else if(sel){ sel=null; } syncProps(); dirty=true; e.preventDefault(); return; }
+  if(e.key==='Escape'){ openSettings(false); stopAll(); if(cropMode){ cropMode=false; } else if(sel){ sel=null; } syncProps(); dirty=true; e.preventDefault(); return; }
   if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   const k={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,1],ArrowDown:[0,-1]}[e.key];
   if(sel && !job.running){
@@ -1020,7 +1161,7 @@ function updateUI(){
   const k = connected && st.known;
   $('wx').textContent = k?(st.w[0]/MM).toFixed(3):'-'; $('wy').textContent = k?(st.w[1]/MM).toFixed(3):'-';
   $('mx').textContent = k?(st.m[0]/MM).toFixed(3):'-'; $('my').textContent = k?(st.m[1]/MM).toFixed(3):'-';
-  $('fs').textContent = k?Math.round(st.f/MM):'-'; $('ss').textContent = k?Math.round(st.s):'-';
+  $('fs').textContent = k?Math.round(st.f/60):'-'; $('ss').textContent = k?Math.round(st.s):'-';
   const ov = k && st.ov;
   $('ovF').textContent = ov?st.ov[0]+'%':'-'; $('ovR').textContent = ov?st.ov[1]+'%':'-'; $('ovS').textContent = ov?st.ov[2]+'%':'-';
   $('ovF').style.color = ov&&st.ov[0]!==100?'var(--warn)':''; $('ovS').style.color = ov&&st.ov[2]!==100?'var(--warn)':'';
@@ -1048,7 +1189,7 @@ setInterval(()=>{ if(job.running) updateUI(); }, 500);
 const cv=$('map'), cx=cv.getContext('2d');
 let jobCv=document.createElement('canvas'), doneCv=document.createElement('canvas');
 let W=0,H=0,DPR=1, vw={x0:0,y0:0,sc:1}, dirty=true, staticKey='', doneSeg=0;
-const BURN_COL='255,138,61', DONE_COL='76,195,138';
+const BURN_COL='255,122,26', DONE_COL='46,229,157';
 
 function bedRect(){ return { x0:(+$('bedX0').value||0)*MM, y0:(+$('bedY0').value||0)*MM, w:(+$('bedW').value||10)*MM, h:(+$('bedH').value||10)*MM }; }
 function resize(){
@@ -1105,14 +1246,14 @@ function draw(){
   const g=cx; g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H);
   // bed + inch grid
   const b=bedRect();
-  g.fillStyle='#161b20'; g.fillRect(px(b.x0),py(b.y0+b.h),b.w*vw.sc,b.h*vw.sc);
+  g.fillStyle='#0e1217'; g.fillRect(px(b.x0),py(b.y0+b.h),b.w*vw.sc,b.h*vw.sc);
   const step = vw.sc*MM < 12 ? MM*6 : (vw.sc*MM < 25 ? MM*2 : MM);
-  g.strokeStyle='#222a31'; g.lineWidth=1; g.beginPath();
+  g.strokeStyle='#1c242e'; g.lineWidth=1; g.beginPath();
   for(let x=b.x0;x<=b.x0+b.w+0.01;x+=step){ g.moveTo(px(x)+.5,py(b.y0)); g.lineTo(px(x)+.5,py(b.y0+b.h)); }
   for(let y=b.y0;y<=b.y0+b.h+0.01;y+=step){ g.moveTo(px(b.x0),py(y)+.5); g.lineTo(px(b.x0+b.w),py(y)+.5); }
   g.stroke();
-  g.strokeStyle='#3a4550'; g.strokeRect(px(b.x0)+.5,py(b.y0+b.h)+.5,b.w*vw.sc,b.h*vw.sc);
-  g.fillStyle='#55606a'; g.font='10px ui-monospace,monospace';
+  g.strokeStyle='#4a5868'; g.strokeRect(px(b.x0)+.5,py(b.y0+b.h)+.5,b.w*vw.sc,b.h*vw.sc);
+  g.fillStyle='#7d8a99'; g.font='10px ui-monospace,monospace';
   for(let x=b.x0;x<=b.x0+b.w+0.01;x+=step) g.fillText(((x)/MM).toFixed(0), px(x)+2, py(b.y0)+11);
   // job layers
   g.setTransform(1,0,0,1,0,0); if(!(layoutStale && job.fromLayout)){ g.drawImage(jobCv,0,0); g.drawImage(doneCv,0,0); } g.setTransform(DPR,0,0,DPR,0,0);

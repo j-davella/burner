@@ -22,6 +22,8 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - Character-counted streaming (no buffer overruns / lockups)
 - STOP / Esc = feed hold + soft reset. Kills the job and the laser, no reboot
 - Pause/resume, live speed / power / rapid overrides mid-burn
+- Speeds in mm/s. Settings page: bed size, X/Y acceleration (mm/s², `$120`/`$121`) and max rates, written to the controller
+- Material presets: save raster (LPI, speed, power, dither...) and vector (power, speed, passes) settings by name; export/import JSON
 - Pauses on G-code errors, alarm bar with Unlock / Home
 - Layout: add images, DXF, SVG. Move, scale, rotate, crop (images), duplicate, delete
 - Images raster with M4 dynamic power, optional dithering, bidirectional, overscan
