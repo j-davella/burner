@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Burner - GRBL laser sender</title>
+<link rel="stylesheet" href="css/burner.css">
+<script type="module" src="engine/boot.js"></script>
+<script defer src="ui/01-base.js"></script>
+<script defer src="ui/02-serial.js"></script>
+<script defer src="ui/03-job.js"></script>
+<script defer src="ui/04-layout.js"></script>
+<script defer src="ui/05-generate.js"></script>
+<script defer src="ui/06-presets.js"></script>
+<script defer src="ui/07-controls.js"></script>
+<script defer src="ui/08-map.js"></script>
+<script defer src="ui/09-lab.js"></script>
+</head>
+<body class="hud">
+<div id="boot"></div>
+<header>
+  <svg class="reactor" viewBox="0 0 40 40"><circle cx="20" cy="20" r="6" fill="#7ff3ff" style="filter:drop-shadow(0 0 4px #00e5ff)"/><g class="r1" fill="none" stroke="#00e5ff" stroke-width="2"><circle cx="20" cy="20" r="15" stroke-dasharray="10 5"/></g><g class="r2" fill="none" stroke="#7ff3ff" stroke-width="1.2"><circle cx="20" cy="20" r="10" stroke-dasharray="3 3"/></g></svg>
+  <span class="brand">BURNER</span>
+  <select id="mode" title="Bridge = burner_bridge.py (any browser). Web Serial = Chrome/Firefox built-in."><option value="bridge">Bridge</option><option value="webserial">Web Serial</option></select>
+  <select id="portSel" style="max-width:240px"><option value="">(refresh)</option></select>
+  <button id="portRefresh" class="icon" title="Refresh port list">&#8635;</button>
+  <select id="baud"><option>115200</option><option>250000</option><option>230400</option><option>57600</option><option>9600</option></select>
+  <button id="connBtn" class="pri">Connect</button>
+  <span class="sep"></span>
+  <span id="stateBadge" class="badge">Offline</span>
+  <span class="dro"><span><i>X</i><b id="wx">-</b></span><span><i>Y</i><b id="wy">-</b></span><small>in work</small></span>
+  <span class="dro"><small>M</small><small id="mx">-</small><small id="my">-</small><small>&nbsp;F</small><small id="fs">-</small><small>mm/s &nbsp;S</small><small id="ss">-</small></span>
+  <span style="flex:1"></span>
+  <button id="labBtn" class="icon" title="Material test lab">&#9878; Test Lab</button>
+  <button id="gearBtn" class="icon" title="Settings">&#9881; Settings</button>
+  <button id="stopBtn" title="Feed hold, then soft reset. Laser off, job killed, no reboot. (Esc)">STOP</button>
+</header>
+<main>
+  <div class="col left">
+    <div id="alarmBar">ALARM: commands locked.<br><button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
+    <div class="box">
+      <h3>Machine</h3>
+      <div class="row">
+        <button id="homeBtn">Home</button>
+        <button id="unlockBtn">Unlock</button>
+        <button id="resetBtn" title="Soft reset (Ctrl-X)">Reset</button>
+      </div>
+      <div class="row">
+        <button id="zeroBtn" title="G10 L20 P1 X0 Y0: current spot becomes work 0,0">Set zero here</button>
+        <button id="goZeroBtn">Go to zero</button>
+      </div>
+    </div>
+    <div class="box">
+      <h3>Jog</h3>
+      <div class="jog">
+        <button data-j="-1,1">&#8598;</button><button data-j="0,1">&#9650;</button><button data-j="1,1">&#8599;</button>
+        <button data-j="-1,0">&#9664;</button><button id="jogCancel" title="Cancel jog">&#9632;</button><button data-j="1,0">&#9654;</button>
+        <button data-j="-1,-1">&#8601;</button><button data-j="0,-1">&#9660;</button><button data-j="1,-1">&#8600;</button>
+      </div>
+      <div class="row">
+        <label>Step</label>
+        <select id="jogStep"><option>0.01</option><option>0.05</option><option selected>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select>
+        <label>in</label>
+      </div>
+      <div class="row"><label>Feed</label><input id="jogFeedS" type="number" value="40" step="5" style="width:64px"><label>mm/s</label></div>
+      <div class="muted">Arrow keys jog. Double-click the map to rapid there (laser off).</div>
+    </div>
+    <div class="box">
+      <h3>Run</h3>
+      <div class="runbar">
+        <button id="frameBtn">Frame</button>
+        <button id="startBtn" class="pri">&#9654; Start</button>
+        <button id="pauseBtn" class="warnb">Pause</button>
+      </div>
+      <div class="timer"><b id="tLeft">--:--</b><span id="tSub">no job</span></div>
+      <div><progress id="prog" value="0" max="1"></progress></div>
+      <div id="progTxt" class="muted" style="font-family:var(--mono)">-</div>
+      <div class="row"><label><input id="haltErr" type="checkbox" checked> Pause on G-code error</label></div>
+      <hr>
+      <div class="sub">Live overrides</div>
+      <div class="ov"><b>Speed</b><span id="ovF" class="pos">-</span>
+        <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
+      <div class="ov"><b>Power</b><span id="ovS" class="pos">-</span>
+        <button data-pw="-10">-10</button><button data-pw="-1">-1</button><button data-pw="job" title="Back to what the job set">Job</button><button data-pw="1">+1</button><button data-pw="10">+10</button></div>
+      <div id="pwInfo" class="muted" style="font-family:var(--mono);margin:-2px 0 4px 56px">-</div>
+      <div class="ov ov3"><b>Rapid</b><span id="ovR" class="pos">-</span>
+        <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
+      <div class="muted">Power is actual % of the laser's max ($30), capped at 100. A power tweak lasts until the next operation, then goes back to that op's setting. Speed is % of the job's speed. Keys: [ ] speed, - = power, Space pause.</div>
+      <hr>
+      <div class="sub">Frame</div>
+      <div class="row"><label>Feed</label><input id="frameFeedS" type="number" value="60" step="5" style="width:64px"><label>mm/s</label></div>
+      <div class="row"><label><input id="frameLaser" type="checkbox"> Low-power laser</label><label>S</label><input id="frameS" type="number" value="10" step="1" style="width:60px"></div>
+      <div class="muted">Keep frame S too low to mark the work. Goggles on.</div>
+    </div>
+  </div>
+
+  <div id="mapWrap">
+    <canvas id="map"></canvas>
+    <div id="hudStrip"></div>
+    <div id="mapHint">Scroll zoom &middot; drag pan &middot; F fit &middot; double-click go there</div>
+    <div id="hover"></div>
+  </div>
+
+  <div class="col right">
+    <div class="box" style="margin:0">
+      <h3>Job</h3>
+      <div class="row">
+        <button id="loadImgBtn">+ Image / DXF / SVG</button>
+        <button id="loadGcBtn">Load G-code</button>
+        <input id="gcFile" type="file" accept=".nc,.gcode,.gc,.ngc,.tap,.txt" hidden>
+        <input id="imgFile" type="file" accept="image/*,.svg,.dxf" multiple hidden>
+      </div>
+      <div id="jobInfo" class="muted">No job loaded.</div>
+      <div id="layoutNote" class="muted" style="color:var(--warn);display:none">Layout changed. It regenerates on Start or Frame.</div>
+      <div id="rasterBox">
+        <hr>
+        <div class="sub">Objects</div>
+        <div id="objList" class="muted">Nothing on the bed yet.</div>
+        <div class="row"><button id="onlySelBtn" title="Turn every other object off">Burn only selected</button><button id="allOnBtn">All on</button></div>
+        <div class="muted">Only checked objects burn and frame. Order across everything that's on: images, fills, scores, then cuts last.</div>
+        <hr>
+        <div class="sub">Selected</div>
+        <div id="objNone" class="muted">Click an object on the map. Drag = move, corners = scale (Shift flips aspect lock), top dot = rotate (Shift snaps 15&deg;), Del = delete, arrows nudge 0.01 in (Shift 0.1).</div>
+        <div id="objBox" style="display:none">
+          <div id="objName" style="font-weight:700;margin-bottom:6px;word-break:break-all;color:var(--acc2)"></div>
+          <div class="grid2">
+            <label>Center X (in)</label><input id="oX" type="number" step="0.01">
+            <label>Center Y (in)</label><input id="oY" type="number" step="0.01">
+            <label>Width (in)</label><input id="oW" type="number" step="0.01">
+            <label>Height (in)</label><input id="oH" type="number" step="0.01">
+            <label>Rotate (deg)</label><input id="oR" type="number" step="1">
+          </div>
+          <div class="row"><label><input id="oLock" type="checkbox" checked> Lock aspect</label></div>
+          <div id="vecProps" style="display:none">
+            <div id="pathInfo" class="muted" style="margin:4px 0"></div>
+            <div class="row opbtns"><button data-op="cut">Cut</button><button data-op="score">Score</button><button data-op="fill">Fill</button><button data-op="off">Off</button></div>
+            <div class="row"><button id="pathOuter" title="Contours not inside any other contour">Pick outer</button><button id="pathInner" title="Contours inside another contour">Pick inner</button><button id="pathAll">All</button><button id="pathNone">None</button></div>
+            <div class="opgrid">
+              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span>
+              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1">
+              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1">
+              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1">
+            </div>
+            <div class="row"><label>Fill line interval (mm)</label><input id="op_fill_interval" type="number" step="0.01" style="width:70px"></div>
+            <div class="row"><select id="vPreset" style="flex:1"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
+            <div class="row"><input id="vPresetName" placeholder="Name, e.g. 1/8 birch ply" style="flex:1"><button id="vSaveAs">Save as</button></div>
+            <div class="muted">Click a contour on the map to pick it, Shift-click to add more. Buttons apply to picked contours (or all if none). Order: fill, score, then cut with smallest contours first so parts drop last.</div>
+          </div>
+          <div class="row"><button id="cropBtn">Crop</button><button id="uncropBtn">Uncrop</button><button id="dupBtn">Duplicate</button><button id="toZeroBtn" title="Put the bottom-left corner on work zero">To W0</button><button id="delBtn" class="warnb">Delete</button></div>
+        </div>
+        <hr>
+        <div class="sub" id="rasterHdr">Raster (defaults for new images)</div>
+        <div class="row"><select id="rPreset" style="flex:1"></select><button id="rPresetDel" class="icon" title="Delete this preset">Del</button></div>
+        <div class="grid2">
+          <label>Lines per inch</label><input id="rLpi" type="number" step="1" value="254">
+          <label>Speed (mm/s)</label><input id="rFeedS" type="number" step="5" value="50">
+          <label>Min power %</label><input id="rPmin" type="number" step="1" value="0">
+          <label>Max power %</label><input id="rPmax" type="number" step="1" value="60">
+          <label>Overscan (in)</label><input id="rOver" type="number" step="0.01" value="0.05">
+          <label>Skip below darkness %</label><input id="rThresh" type="number" step="1" value="3">
+        </div>
+        <div class="row">
+          <label><input id="rDither" type="checkbox"> Dither</label>
+          <label><input id="rInvert" type="checkbox"> Invert</label>
+          <label><input id="rBidir" type="checkbox" checked> Bidirectional</label>
+        </div>
+        <div class="row"><input id="rPresetName" placeholder="Name, e.g. Poplar dithered photo" style="flex:1"><button id="rSaveAs">Save as</button></div>
+        <div class="row"><button id="genBtn" class="pri">Generate</button><button id="saveGcBtn">Save .nc</button></div>
+        <img id="thumb" alt="">
+        <div class="muted">Positions are work coords (W0 = blue corner). M4 dynamic power, % of $30.</div>
+      </div>
+    </div>
+    <div id="console"></div>
+    <input id="cmd" placeholder="Send command (Enter). Up/Down = history" autocomplete="off">
+  </div>
+</main>
+
+<div id="labModal">
+  <div class="modal">
+    <h2>Test Lab <button id="closeLab" class="icon">&#10005;</button></h2>
+    <div class="labtop">
+      <label>Material</label><input id="labMat" list="labMats" placeholder="e.g. Poplar" style="width:180px"><datalist id="labMats"></datalist>
+      <span class="sep"></span>
+      <label>Next slot</label><button id="labSlotPrev" class="icon">&#9664;</button><b id="labSlot" class="pos">1</b><button id="labSlotNext" class="icon">&#9654;</button><button id="labSlotReset">Reset</button>
+      <label>Slots per row</label><input id="labCols" type="number" min="1" max="20" style="width:56px">
+      <span style="flex:1"></span>
+      <button id="labReport">Report</button><button id="labCsv">CSV</button>
+    </div>
+    <div class="muted" style="margin:-6px 0 10px">Each test is a 1&times;1 in block. Slots step 30 mm in a grid from work zero (the blue W0 corner), so set zero on the scrap's corner first. Every burn moves to the next slot and gets logged below.</div>
+    <div class="labgrid">
+      <div id="labList"></div>
+      <div class="box" style="margin:0">
+        <h3 id="labTitle">-</h3>
+        <div id="labDesc" class="muted"></div>
+        <div id="labTuned" class="muted" style="margin-top:6px"></div>
+        <div id="labFields"></div>
+        <div class="row"><button id="labPreview">Preview</button><button id="labBurn" class="pri">Burn test block</button><button id="labSaveBtn" class="warnb">Save as tuned</button></div>
+        <div class="row"><button id="labUntune" title="Forget the tuned setting for this test">Clear tuned</button><button id="labClearBurns" title="Delete every logged burn for this test">Clear burns</button></div>
+        <hr>
+        <div class="sub">Burns for this test (newest first)</div>
+        <div id="labHist"></div>
+        <div class="muted" style="margin-top:6px">Mark each block good or bad and leave a note. "Use" saves that row's settings as tuned. Tuned settings build presets like "Poplar 1/8&quot;" (cut + score + fill) and "Poplar dither" that show up in the job panels.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="settingsModal">
+  <div class="modal">
+    <h2>Settings <button id="closeSettings" class="icon">&#10005;</button></h2>
+    <div class="mgrid">
+      <div class="box">
+        <h3>Bed</h3>
+        <div class="grid2">
+          <label>Width (in)</label><input id="bedW" type="number" step="0.125" value="15.75">
+          <label>Height (in)</label><input id="bedH" type="number" step="0.125" value="15.75">
+          <label>Machine X at bed left (in)</label><input id="bedX0" type="number" step="0.125" value="0">
+          <label>Machine Y at bed bottom (in)</label><input id="bedY0" type="number" step="0.125" value="0">
+        </div>
+        <div class="row"><button id="useTravelBtn">Use controller travel ($130/$131)</button></div>
+        <div class="muted">If homing makes MPos negative, set the offsets negative to match.</div>
+      </div>
+      <div class="box">
+        <h3>Motion (controller)</h3>
+        <div class="grid2">
+          <label>X accel (mm/s&sup2;) $120</label><input id="accX" type="number" step="50">
+          <label>Y accel (mm/s&sup2;) $121</label><input id="accY" type="number" step="50">
+          <label>X max rate (mm/s) $110</label><input id="maxX" type="number" step="5">
+          <label>Y max rate (mm/s) $111</label><input id="maxY" type="number" step="5">
+        </div>
+        <div class="row"><button id="writeCfgBtn" class="warnb">Write to controller</button></div>
+        <div class="muted">Read from $$ on connect. Writing saves to the board's EEPROM. Too much accel = skipped steps and a shifted burn, so creep up on it.</div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Controller</h3>
+        <div class="row"><label>Theme</label><select id="theme"><option value="hud">HUD</option><option value="classic">Classic</option></select></div>
+        <div id="ctlInfo" class="muted">Not connected.</div>
+        <div class="row"><button id="settingsBtn">Read $$</button><button id="resyncBtn" title="Clear the sender's buffer count if it ever desyncs">Resync buffer</button></div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Material profiles (Test Lab)</h3>
+        <div id="matProfiles"></div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Material presets</h3>
+        <div id="presetList" class="muted">None saved yet.</div>
+        <div class="row"><button id="presetExport">Export presets</button><button id="presetImport">Import presets</button><input id="presetFile" type="file" accept=".json" hidden></div>
+        <div class="muted">Presets live in this browser. Export them for backup or to move machines.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
