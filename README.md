@@ -114,13 +114,22 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - **Snapping** while dragging: to other objects' edges and centers, the bed edges/center, work zero and a 1/8 in grid. Pink guides show what it snapped to.
 - **Arrange**: align / space the checked objects, align the selected one to the bed, grid and circular arrays, and **Nest on bed** (packs the checked objects by bounding box, turning parts to lie flat when that fits).
 
+## Projects & history
+
+- **Project** (Job tab): New, Open, Save (Ctrl+S), Save as. A `.burner` file is JSON holding the layout, every object's operations and settings, and the images themselves, so it opens anywhere. Opening a saved project generates byte-identical G-code.
+- **Autosave**: the layout is saved in the browser a moment after every change. If the browser, PC or bridge dies, the next launch offers to restore the last session.
+- **Recent**: the last 12 saved/opened projects, one click to reopen.
+- **Job history** per machine: every run (done, stopped, or interrupted, with how far it got), with a thumbnail, time and result. **Load** puts that exact G-code back (press Start to burn it); **Layout** puts the layout back on the bed.
+
+Projects, autosave and history live in the browser's storage for the page's address (the bridge's `http://localhost:8765`), so use the same address each time.
+
 ## Keys
 
 Esc stop · Space pause/resume · `[` `]` speed -/+10% · `-` `=` power -/+10% · arrows jog (or nudge the selected object; Shift = 0.1 in) · Del deletes selected · F fits view
 
 V select tool · H pan tool · T 3D view · P show/hide the side panel · 1-4 panel tabs (Job, Object, Machine, Console) · M machine · ` console · Ctrl+O add a file
 
-Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+D duplicate · R add a rectangle · X add text · G snapping on/off (hold Alt while dragging to place freely)
+Ctrl+S save project · Ctrl+Shift+S save as · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+D duplicate · R add a rectangle · X add text · G snapping on/off (hold Alt while dragging to place freely)
 
 Units in the UI are inches. Machine is driven in mm (`$13=0`).
 

@@ -415,3 +415,21 @@ label.inl input{width:58px;padding:4px 6px}
 #rail::-webkit-scrollbar{display:none}
 #rail button{flex:none}
 @media (max-height:820px){ #rail{gap:3px} #rail button{width:36px;height:32px} #rail .rsep{margin:2px 0} }
+
+/* ---------- Phase 6: projects & history ---------- */
+#projDirty{font-size:11px;letter-spacing:.5px;text-transform:uppercase;align-self:center}
+#projDirty.warn{color:var(--warn)}#projDirty.ok{color:var(--dim)}
+#recentList{margin-top:var(--s2);display:flex;flex-direction:column;gap:3px}
+#recentList button.rec{display:flex;justify-content:space-between;gap:8px;text-align:left;padding:5px 8px;font-size:12.5px;background:transparent;border-color:var(--ln)}
+#recentList button.rec small{color:var(--dim);white-space:nowrap}
+#histList{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto}
+.hist{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:8px;align-items:center;padding:5px;border:1px solid var(--ln);border-radius:var(--r2);background:var(--bg2)}
+.hist img{width:48px;height:48px;border-radius:4px;image-rendering:auto}
+.hist .hm{display:flex;flex-direction:column;min-width:0;font-size:12px;line-height:1.3}
+.hist .hm b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist .hm small{color:var(--dim)}
+.hist .hm .ok{color:var(--ok)}.hist .hm .warn{color:var(--warn)}.hist .hm .bad{color:#ff8a96}
+.hist .hb{display:flex;gap:4px}.hist .hb button{padding:4px 8px;font-size:12px}
+#recoverBar{display:none;position:absolute;bottom:40px;left:50%;transform:translateX(-50%);z-index:4;align-items:center;gap:var(--s3);
+  max-width:min(680px,calc(100% - 24px));width:max-content;padding:var(--s2) var(--s2) var(--s2) var(--s4);background:rgba(8,26,38,.94);
+  border:1px solid var(--blu);border-radius:var(--r);box-shadow:0 0 24px rgba(77,184,255,.3)}

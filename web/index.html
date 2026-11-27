@@ -20,6 +20,7 @@
 <script defer src="ui/11-machine.js"></script>
 <script defer src="ui/12-resume.js"></script>
 <script defer src="ui/13-design.js"></script>
+<script defer src="ui/14-project.js"></script>
 <!-- effects: isolated on purpose. If it fails, effects switch off; controls never depend on it -->
 <script defer src="fx/fx.js"></script>
 </head>
@@ -114,6 +115,7 @@
     <div id="hudStrip"></div>
     <div id="alarmBar" role="alert"><b>ALARM</b><span>Commands are locked.</span><button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
     <div id="dropBar" role="alert"><span></span><button id="dropAct"></button><button id="dropX" class="icon" aria-label="Dismiss">&#10005;</button></div>
+    <div id="recoverBar" role="status"><span></span><button id="recoverYes" class="pri">Restore</button><button id="recoverNo">Discard</button></div>
     <div id="layoutNote">Layout changed. It regenerates on Start or Frame.</div>
     <div id="mapHint">Scroll zoom &middot; drag empty space to pan &middot; F fit &middot; double-click to move the head there</div>
     <div id="hover"></div>
@@ -137,6 +139,13 @@
       </div>
       <input id="gcFile" type="file" accept=".nc,.gcode,.gc,.ngc,.tap,.txt" hidden>
       <input id="imgFile" type="file" accept="image/*,.svg,.dxf" multiple hidden>
+      <details class="sec" data-sec="project" open>
+        <summary>Project</summary>
+        <div class="row"><input id="projName" class="grow" placeholder="Untitled" aria-label="Project name"><span id="projDirty"></span></div>
+        <div class="row tight"><button id="projNew">New</button><button id="projOpen">Open...</button><button id="projSave" title="Ctrl+S">Save</button><button id="projSaveAs" title="Ctrl+Shift+S">Save as...</button></div>
+        <input id="projFile" type="file" accept=".burner,.json" hidden>
+        <div id="recentList"></div>
+      </details>
       <div id="jobInfo" class="card muted">No job loaded.</div>
       <div id="resumeBox" class="card resume" hidden>
         <div class="rh"><b>Job stopped</b><span id="resWhy"></span></div>
@@ -161,6 +170,10 @@
           <div class="arr-h">Arrange checked objects</div>
           <div class="row tight"><button data-al="l" title="Align left edges">Left</button><button data-al="cx" title="Align centers left-right">Center</button><button data-al="r" title="Align right edges">Right</button><button data-al="t" title="Align top edges">Top</button><button data-al="cy" title="Align middles">Middle</button><button data-al="b" title="Align bottom edges">Bottom</button></div>
           <div class="row tight"><button data-dist="x" title="Equal gaps left to right">Space across</button><button data-dist="y" title="Equal gaps bottom to top">Space up</button><button id="nestBtn" title="Pack them on the bed by bounding box, turning parts to lie flat when that fits">Nest on bed</button><label class="inl">gap <input id="nestGap" type="number" value="0.1" step="0.05" min="0"> in</label></div>
+        </details>
+        <details class="sec" data-sec="history">
+          <summary>Job history <small id="histMachine"></small></summary>
+          <div id="histList"></div>
         </details>
         <details class="sec" data-sec="output" open>
           <summary>Output</summary>

@@ -55,7 +55,7 @@ function addImage(f){
     const im=new Image();
     im.onload=()=>{
       const iw=im.naturalWidth, ih=im.naturalHeight, s=Math.min(3.5*MM, bedRect().w)/iw;
-      addObj({type:'img', img:im, name:f.name, iw, ih, cx:0, cy:0, cw:iw, ch:ih, sx:s, sy:s, r:readRaster()});
+      addObj({type:'img', img:im, blob:f, name:f.name, iw, ih, cx:0, cy:0, cw:iw, ch:ih, sx:s, sy:s, r:readRaster()});
       log('Image '+f.name+' '+iw+'x'+ih+' px added at 3.5 in wide','dim'); res();
     };
     im.onerror=()=>rej(new Error('not a readable image'));
