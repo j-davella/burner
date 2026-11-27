@@ -1,6 +1,6 @@
 # Burner — upgrade plan (2026-11-26)
 
-Status: phases 0-6 (and 3b) done on branch `upgrade`. Next: 7 (camera).
+Status: all phases (0-7 and 3b) done on branch `upgrade`, not pushed. Needs real-hardware checks: COM port on Windows, flake on NixOS, USB camera, air assist output.
 Note: 3b uses raw WebGL2 (web/fx/fx.js) instead of vendoring three.js: no download, nothing to trust, ~30 KB.
 
 Decisions so far: keep the browser UI + stdlib Python bridge, polish the HUD

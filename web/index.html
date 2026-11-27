@@ -21,6 +21,7 @@
 <script defer src="ui/12-resume.js"></script>
 <script defer src="ui/13-design.js"></script>
 <script defer src="ui/14-project.js"></script>
+<script defer src="ui/15-camera.js"></script>
 <!-- effects: isolated on purpose. If it fails, effects switch off; controls never depend on it -->
 <script defer src="fx/fx.js"></script>
 </head>
@@ -328,6 +329,19 @@
         </div>
         <p class="hint">Keep frame S too low to mark the work. Goggles on.</p>
       </details>
+      <details class="sec" data-sec="camera">
+        <summary>Camera</summary>
+        <div class="row"><select id="camSel" class="grow" aria-label="Camera"><option value="">(press Start)</option></select><button id="camOn">Start</button></div>
+        <div class="fgrid one">
+          <label class="chk"><input id="camShow" type="checkbox" checked> Show on the bed</label><span></span>
+          <label for="camOpacity">Opacity</label><input id="camOpacity" type="range" min="0.1" max="1" step="0.05" value="0.6">
+        </div>
+        <div id="camInfo" class="muted"></div>
+        <div class="arr-h">Calibrate (once per camera position)</div>
+        <div class="fgrid one"><label for="camMarkS">Mark power <small>%</small></label><input id="camMarkS" type="number" value="20" step="5" min="1" max="100"><label for="camMarkF">Mark speed <small>mm/s</small></label><input id="camMarkF" type="number" value="20" step="5" min="1"></div>
+        <div class="row tight"><button id="camBurn" class="warnb">1. Burn 4 marks</button><button id="camCal">2. Click the marks</button><button id="camForget" class="danger">Forget</button></div>
+        <p class="hint">Cover the bed with scrap first. Marks go 12% in from each corner and are numbered by ticks: 1 bottom-left, 2 bottom-right, 3 top-right, 4 top-left, as on the map. Then place art on the live picture of your scrap.</p>
+      </details>
       <details class="sec" data-sec="errors">
         <summary>Errors</summary>
         <label class="chk"><input id="haltErr" type="checkbox" checked> Pause the job on a G-code error</label>
@@ -365,6 +379,14 @@
   </div>
 </footer>
 
+<div id="camModal">
+  <div class="modal">
+    <h2>Camera calibration <button id="camClose" class="icon" aria-label="Close">&#10005;</button></h2>
+    <p id="camStep" class="hint"></p>
+    <div class="camwrap"><canvas id="camShot"></canvas><canvas id="camLoupe" width="180" height="180"></canvas></div>
+    <div class="row"><button id="camRetake">New snapshot</button><button id="camUndoPt">Undo point</button><span class="grow"></span><button id="camSaveCal" class="pri" disabled>Save calibration</button></div>
+  </div>
+</div>
 <div id="labModal">
   <div class="modal">
     <h2>Test Lab <button id="closeLab" class="icon" aria-label="Close">&#10005;</button></h2>

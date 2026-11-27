@@ -190,5 +190,5 @@ const Machines = (()=>{
 
   fillSel(); info();
   setInterval(()=>{ if(R.back && !job.halt){ R.back=false; bar(); } }, 1000);
-  return { air:()=>cur.air||'', current:()=>cur, onClosed, onOpened, onPorts, onSetting, quietError, info, bar };
+  return { air:()=>cur.air||'', current:()=>cur, save, onClosed, onOpened, onPorts, onSetting, quietError, info, bar };
 })();

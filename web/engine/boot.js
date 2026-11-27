@@ -7,6 +7,7 @@ import * as Gcode from './gcode.js';
 import * as Jobs from './jobs.js';
 import * as Svg from './svgpath.js';
 import * as Shapes from './shapes.js';
+import * as Cam from './camera.js';
 
 window.Core = Core;
-window.Eng = Object.freeze({ ...Geom, ...Dxf, ...Gcode, ...Jobs, ...Svg, ...Shapes });
+window.Eng = Object.freeze({ ...Geom, ...Dxf, ...Gcode, ...Jobs, ...Svg, ...Shapes, ...Cam });

@@ -91,6 +91,7 @@ function draw(){
   }
   g.fillStyle=H_?'rgba(127,243,255,0.75)':'#7d8a99'; g.font='10px ui-monospace,monospace';
   for(let x=b.x0;x<=b.x0+b.w+0.01;x+=step) g.fillText(((x)/MM).toFixed(0), px(x)+2, py(b.y0)+11);
+  if(typeof Camera!=='undefined') try{ Camera.draw(g); }catch(e){ console.warn(e); }
   // job layers
   if(!(layoutStale && job.fromLayout)){
     if(blit){ // map the last crisp render from its view to the current one

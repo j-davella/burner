@@ -123,6 +123,16 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 
 Projects, autosave and history live in the browser's storage for the page's address (the bridge's `http://localhost:8765`), so use the same address each time.
 
+## Camera
+
+Machine tab → Camera. Any USB camera the browser can see (open Burner from `http://localhost:8765`; Chrome or Firefox will ask to allow the camera).
+
+1. Cover the bed with scrap and press **Burn 4 marks**: four small numbered crosshairs, 12% in from the bed corners (1 bottom-left, 2 bottom-right, 3 top-right, 4 top-left; the number is the count of ticks).
+2. **Click the marks** in the camera snapshot, in that order. A loupe magnifies the spot under the cursor; Burner refuses points that aren't in order around the bed.
+3. The live picture is now unwarped onto the bed (GPU, ~10 fps) under your layout, with an opacity slider. Place art on the actual scrap.
+
+The calibration is saved in the machine profile; redo it if the camera moves. Only perspective is corrected, not lens barrel distortion, so mount the camera high with a not-too-wide lens.
+
 ## Keys
 
 Esc stop · Space pause/resume · `[` `]` speed -/+10% · `-` `=` power -/+10% · arrows jog (or nudge the selected object; Shift = 0.1 in) · Del deletes selected · F fits view
@@ -141,8 +151,10 @@ burner.cmd/.sh        launchers;  flake.nix = Nix package, app, NixOS module
 web/index.html        page markup
 web/css/burner.css    styles
 web/engine/*.js       pure logic, ES modules, no DOM: core, geom, dxf, gcode, svgpath,
+                      shapes (shapes, stroke font, tracing, nesting), camera (homography),
                       jobs (generate / import / load), worker (runs jobs off the UI thread)
-web/ui/NN-*.js        UI scripts, loaded in order
+web/ui/NN-*.js        UI scripts, loaded in order (11 machine profiles + reconnect, 12 resume,
+                      13 design tools + undo, 14 projects + history, 15 camera)
 web/fx/fx.js          effects + 3D view (WebGL2), isolated: never required by the app
 tests/                golden G-code, fixtures, harnesses
 ```
@@ -176,6 +188,7 @@ node tests/engine.test.mjs        # engine + worker job path, no browser
 node tests/join.test.mjs          # fast contour joiner == original, incl. 30 random dense layouts
 node tests/resume.test.mjs        # resume-from-line burns the same as the original; air assist output
 node tests/shapes.test.mjs        # shapes, single-line font, contour tracing, arrays, nesting
+node tests/camera.test.mjs        # camera homography, click-order check, calibration mark G-code
 python tests/capture_server.py    # serves the repo on :8799 and accepts POST /capture/<name>
 ```
 
