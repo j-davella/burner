@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Burner - GRBL laser sender</title>
+<link rel="stylesheet" href="css/burner.css">
+<script type="module" src="engine/boot.js"></script>
+<script defer src="ui/01-base.js"></script>
+<script defer src="ui/01b-jobs.js"></script>
+<script defer src="ui/02-serial.js"></script>
+<script defer src="ui/03-job.js"></script>
+<script defer src="ui/04-layout.js"></script>
+<script defer src="ui/05-generate.js"></script>
+<script defer src="ui/06-presets.js"></script>
+<script defer src="ui/07-controls.js"></script>
+<script defer src="ui/08-map.js"></script>
+<script defer src="ui/09-lab.js"></script>
+<script defer src="ui/10-shell.js"></script>
+<script defer src="ui/11-machine.js"></script>
+<script defer src="ui/12-resume.js"></script>
+<script defer src="ui/13-design.js"></script>
+<script defer src="ui/14-project.js"></script>
+<script defer src="ui/15-camera.js"></script>
+<!-- effects: isolated on purpose. If it fails, effects switch off; controls never depend on it -->
+<script defer src="fx/fx.js"></script>
+</head>
+<body class="hud">
+<!-- icon sprite: 24x24, stroke icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-select" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.5L10 19z"/></symbol>
+    <symbol id="i-pan" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24"><path d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
+    <symbol id="i-zin" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M11 8v6M8 11h6M16 16l5 5"/></symbol>
+    <symbol id="i-zout" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M16 16l5 5"/></symbol>
+    <symbol id="i-add" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v7M8.5 14.5h7"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-lab" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 19a1.3 1.3 0 0 0 1.2 2h12.6a1.3 1.3 0 0 0 1.2-2L14 9V3M7 15h10"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+    <symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4v16M17 4v16"/></symbol>
+    <symbol id="i-frame" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" stroke-dasharray="3 2.5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 9.5V20h14V9.5"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></symbol>
+    <symbol id="i-zero" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v5h5"/></symbol>
+    <symbol id="i-machine" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 9h18M12 9v4"/><circle cx="12" cy="15" r="1.5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></symbol>
+    <symbol id="i-magnet" viewBox="0 0 24 24"><path d="M6 3v8a6 6 0 0012 0V3"/><path d="M6 7h3M15 7h3M9 3v8a3 3 0 006 0V3"/></symbol>
+    <symbol id="i-shape" viewBox="0 0 24 24"><rect x="3" y="11" width="9" height="9" rx="1"/><circle cx="16" cy="8" r="5"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></symbol>
+    <symbol id="i-obj" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 2"/><path d="M8 16l4-8 4 8z"/></symbol>
+  </defs>
+</svg>
+<div id="boot"></div>
+
+<header id="topbar">
+  <div class="tl">
+  <div class="brandbox">
+    <svg class="reactor" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="6" fill="#7ff3ff" style="filter:drop-shadow(0 0 4px #00e5ff)"/><g class="r1" fill="none" stroke="#00e5ff" stroke-width="2"><circle cx="20" cy="20" r="15" stroke-dasharray="10 5"/></g><g class="r2" fill="none" stroke="#7ff3ff" stroke-width="1.2"><circle cx="20" cy="20" r="10" stroke-dasharray="3 3"/></g></svg>
+    <span class="brand">BURNER</span>
+  </div>
+  <div class="conn" role="group" aria-label="Connection">
+    <select id="mode" title="Bridge = burner_bridge.py (any browser). Web Serial = Chrome/Firefox built-in."><option value="bridge">Bridge</option><option value="webserial">Web Serial</option></select>
+    <select id="portSel" title="Serial port"><option value="">(refresh)</option></select>
+    <button id="portRefresh" class="icon" title="Refresh port list" aria-label="Refresh port list">&#8635;</button>
+    <select id="baud" title="Baud rate"><option>115200</option><option>250000</option><option>230400</option><option>57600</option><option>9600</option></select>
+    <button id="connBtn" class="pri">Connect</button>
+  </div>
+  <span id="stateBadge" class="badge">Offline</span>
+  <div class="dro" title="Head position in work coordinates (inches)">
+    <span><i>X</i><b id="wx">-</b></span><span><i>Y</i><b id="wy">-</b></span>
+  </div>
+  <div class="dro sm" title="Machine position (in), feed (mm/s) and laser S value">
+    <small>MPOS</small><small id="mx">-</small><small id="my">-</small><small>F</small><small id="fs">-</small><small>S</small><small id="ss">-</small>
+  </div>
+  </div>
+  <div class="tr">
+  <button id="labBtn" class="ghost" title="Material test lab"><svg class="ic"><use href="#i-lab"/></svg><span>Test Lab</span></button>
+  <button id="gearBtn" class="ghost" title="Settings"><svg class="ic"><use href="#i-gear"/></svg><span>Settings</span></button>
+  <button id="stopBtn" title="Feed hold, then soft reset. Laser off, job killed, no reboot. (Esc)">STOP</button>
+  </div>
+</header>
+
+<main id="shell">
+  <nav id="rail" aria-label="Tools">
+    <button class="tool on" data-tool="select" title="Select / move (V)" aria-label="Select tool"><svg class="ic"><use href="#i-select"/></svg></button>
+    <button class="tool" data-tool="pan" title="Pan (H). Middle mouse always pans." aria-label="Pan tool"><svg class="ic"><use href="#i-pan"/></svg></button>
+    <span class="rsep"></span>
+    <button id="zoomInBtn" title="Zoom in (or scroll)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
+    <button id="zoomOutBtn" title="Zoom out (or scroll)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
+    <button id="fitBtn" title="Fit bed (F)" aria-label="Fit view"><svg class="ic"><use href="#i-fit"/></svg></button>
+    <button id="view3dBtn" title="3D view (T)" aria-label="Toggle 3D view"><svg class="ic"><use href="#i-cube"/></svg></button>
+    <span class="rsep"></span>
+    <button id="railAdd" title="Add image / DXF / SVG (Ctrl+O)" aria-label="Add file"><svg class="ic"><use href="#i-add"/></svg></button>
+    <button id="railShape" title="Add a rectangle (R)" aria-label="Add shape"><svg class="ic"><use href="#i-shape"/></svg></button>
+    <button id="railText" title="Add text (X)" aria-label="Add text"><svg class="ic"><use href="#i-text"/></svg></button>
+    <button id="snapBtn" class="on" title="Snap to grid, bed and other objects while dragging (G). Hold Alt to drag freely." aria-label="Toggle snapping"><svg class="ic"><use href="#i-magnet"/></svg></button>
+    <span class="rsep"></span>
+    <button id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+    <button id="redoBtn" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" aria-label="Redo"><svg class="ic"><use href="#i-redo"/></svg></button>
+    <button data-tab-go="machine" title="Machine: home, jog, zero (M)" aria-label="Machine panel"><svg class="ic"><use href="#i-machine"/></svg></button>
+    <button data-tab-go="console" title="Console (`)" aria-label="Console panel"><svg class="ic"><use href="#i-term"/></svg></button>
+    <span class="grow"></span>
+    <button id="panelBtn" title="Show / hide the side panel (P)" aria-label="Toggle side panel"><svg class="ic"><use href="#i-panel"/></svg></button>
+  </nav>
+
+  <section id="mapWrap" aria-label="Bed">
+    <canvas id="map"></canvas>
+    <div id="hudStrip"></div>
+    <div id="alarmBar" role="alert"><b>ALARM</b><span>Commands are locked.</span><button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
+    <div id="dropBar" role="alert"><span></span><button id="dropAct"></button><button id="dropX" class="icon" aria-label="Dismiss">&#10005;</button></div>
+    <div id="recoverBar" role="status"><span></span><button id="recoverYes" class="pri">Restore</button><button id="recoverNo">Discard</button></div>
+    <div id="layoutNote">Layout changed. It regenerates on Start or Frame.</div>
+    <div id="mapHint">Scroll zoom &middot; drag empty space to pan &middot; F fit &middot; double-click to move the head there</div>
+    <div id="hover"></div>
+    <div id="scrub" aria-label="Replay"><button id="scrubPlay" class="icon" title="Replay the job (preview only, nothing is sent)"><svg class="ic"><use href="#i-play"/></svg></button><input id="scrubRange" type="range" min="0" max="1000" value="1000" aria-label="Replay position"><span id="scrubTxt">100%</span></div>
+    <div id="busy" role="status" aria-live="polite"><div class="busy-t">Working</div><div class="busy-bar"><i></i></div><div class="busy-row"><span class="busy-p">0%</span><button id="busyCancel" class="icon">Cancel</button></div></div>
+  </section>
+
+  <aside id="inspector" aria-label="Inspector">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="job" class="on"><svg class="ic"><use href="#i-layers"/></svg>Job</button>
+      <button role="tab" data-tab="object"><svg class="ic"><use href="#i-obj"/></svg>Object</button>
+      <button role="tab" data-tab="machine"><svg class="ic"><use href="#i-machine"/></svg>Machine</button>
+      <button role="tab" data-tab="console"><svg class="ic"><use href="#i-term"/></svg>Console</button>
+    </div>
+
+    <!-- ===================== JOB ===================== -->
+    <div class="pane on" data-pane="job" role="tabpanel">
+      <div class="row2">
+        <button id="loadImgBtn" class="pri wide"><svg class="ic"><use href="#i-add"/></svg>Add image / DXF / SVG</button>
+        <button id="loadGcBtn" title="Load a G-code file as-is"><svg class="ic"><use href="#i-file"/></svg>G-code</button>
+      </div>
+      <input id="gcFile" type="file" accept=".nc,.gcode,.gc,.ngc,.tap,.txt" hidden>
+      <input id="imgFile" type="file" accept="image/*,.svg,.dxf" multiple hidden>
+      <details class="sec" data-sec="project" open>
+        <summary>Project</summary>
+        <div class="row"><input id="projName" class="grow" placeholder="Untitled" aria-label="Project name"><span id="projDirty"></span></div>
+        <div class="row tight"><button id="projNew">New</button><button id="projOpen">Open...</button><button id="projSave" title="Ctrl+S">Save</button><button id="projSaveAs" title="Ctrl+Shift+S">Save as...</button></div>
+        <input id="projFile" type="file" accept=".burner,.json" hidden>
+        <div id="recentList"></div>
+      </details>
+      <div id="jobInfo" class="card muted">No job loaded.</div>
+      <div id="resumeBox" class="card resume" hidden>
+        <div class="rh"><b>Job stopped</b><span id="resWhy"></span></div>
+        <div id="resWhere" class="muted"></div>
+        <div class="fgrid one"><label for="resLine">Resume from line</label><input id="resLine" type="number" min="1" step="1"></div>
+        <div class="row"><button id="resNearest" title="The move the head was on when it stopped">Where it stopped</button><button id="resBack" title="Start a little earlier (overlap instead of a gap)">Back a bit</button></div>
+        <ul id="resWarn"></ul>
+        <label class="chk"><input id="resAck" type="checkbox"> I checked the work and the warnings above</label>
+        <div class="row"><button id="resGo" class="pri"><svg class="ic"><use href="#i-play"/></svg><span>Resume</span></button><button id="resDiscard">Discard</button></div>
+      </div>
+      <div id="rasterBox">
+        <details class="sec" data-sec="create" open>
+          <summary>Create</summary>
+          <div class="row mk"><button data-mk="rect">Rectangle</button><button data-mk="rounded">Rounded</button><button data-mk="ellipse">Circle</button><button data-mk="polygon">Polygon</button><button data-mk="star">Star</button></div>
+          <div class="row mk"><button data-mk="text" title="Outline text in any installed font (fill or cut)">Text</button><button data-mk="stext" title="Single-line text: one stroke per letter, for scoring">Single-line text</button></div>
+        </details>
+        <details class="sec" data-sec="objects" open>
+          <summary>Objects</summary>
+          <div id="objList" class="muted">Nothing on the bed yet.</div>
+          <div class="row"><button id="onlySelBtn" title="Turn every other object off">Burn only selected</button><button id="allOnBtn">All on</button></div>
+          <p class="hint">Only checked objects burn and frame. Order: images, fills, scores, then cuts.</p>
+          <div class="arr-h">Arrange checked objects</div>
+          <div class="row tight"><button data-al="l" title="Align left edges">Left</button><button data-al="cx" title="Align centers left-right">Center</button><button data-al="r" title="Align right edges">Right</button><button data-al="t" title="Align top edges">Top</button><button data-al="cy" title="Align middles">Middle</button><button data-al="b" title="Align bottom edges">Bottom</button></div>
+          <div class="row tight"><button data-dist="x" title="Equal gaps left to right">Space across</button><button data-dist="y" title="Equal gaps bottom to top">Space up</button><button id="nestBtn" title="Pack them on the bed by bounding box, turning parts to lie flat when that fits">Nest on bed</button><label class="inl">gap <input id="nestGap" type="number" value="0.1" step="0.05" min="0"> in</label></div>
+        </details>
+        <details class="sec" data-sec="history">
+          <summary>Job history <small id="histMachine"></small></summary>
+          <div id="histList"></div>
+        </details>
+        <details class="sec" data-sec="output" open>
+          <summary>Output</summary>
+          <div class="row"><button id="genBtn" class="pri">Generate</button><button id="saveGcBtn">Save .nc</button></div>
+          <img id="thumb" alt="Raster preview">
+          <p class="hint">Positions are work coords (W0 = blue corner). M4 dynamic power, % of $30.</p>
+        </details>
+      </div>
+    </div>
+
+    <!-- ===================== OBJECT ===================== -->
+    <div class="pane" data-pane="object" role="tabpanel">
+      <div id="objNone" class="empty">
+        <svg class="ic big"><use href="#i-obj"/></svg>
+        <p>Click an object on the bed to edit it.</p>
+        <p class="hint">Drag to move &middot; corners scale (Shift flips aspect lock) &middot; top dot rotates (Shift snaps 15&deg;) &middot; Del deletes &middot; arrows nudge 0.01 in (Shift 0.1).</p>
+      </div>
+      <div id="objBox" style="display:none">
+        <div id="objName" class="objname"></div>
+        <details class="sec" data-sec="place" open>
+          <summary>Position &amp; size</summary>
+          <div class="fgrid">
+            <label for="oX">X <small>in</small></label><input id="oX" type="number" step="0.01">
+            <label for="oY">Y <small>in</small></label><input id="oY" type="number" step="0.01">
+            <label for="oW">W <small>in</small></label><input id="oW" type="number" step="0.01">
+            <label for="oH">H <small>in</small></label><input id="oH" type="number" step="0.01">
+            <label for="oR">Rot <small>&deg;</small></label><input id="oR" type="number" step="1">
+            <label class="chk"><input id="oLock" type="checkbox" checked> Lock aspect</label>
+          </div>
+          <div class="row"><button id="cropBtn">Crop</button><button id="uncropBtn">Uncrop</button><button id="dupBtn">Duplicate</button><button id="toZeroBtn" title="Put the bottom-left corner on work zero">To W0</button><button id="delBtn" class="danger">Delete</button></div>
+        </details>
+        <details class="sec" data-sec="shape" id="shapeProps" style="display:none" open>
+          <summary>Shape</summary>
+          <div class="fgrid">
+            <label for="shW">Width <small>in</small></label><input id="shW" type="number" step="0.05" min="0.01">
+            <label for="shH">Height <small>in</small></label><input id="shH" type="number" step="0.05" min="0.01">
+            <label for="shR" class="sh-r">Corner <small>in</small></label><input id="shR" class="sh-r" type="number" step="0.05" min="0">
+            <label for="shN" class="sh-n">Points</label><input id="shN" class="sh-n" type="number" step="1" min="3" max="200">
+            <label for="shI" class="sh-i">Inner <small>%</small></label><input id="shI" class="sh-i" type="number" step="5" min="5" max="95">
+          </div>
+        </details>
+        <details class="sec" data-sec="text" id="textProps" style="display:none" open>
+          <summary>Text</summary>
+          <textarea id="txStr" rows="2" spellcheck="false" aria-label="Text"></textarea>
+          <div class="fgrid">
+            <label for="txFont">Font</label><select id="txFont"></select>
+            <label for="txSize">Size <small>in</small></label><input id="txSize" type="number" step="0.05" min="0.05">
+            <label for="txAlign">Align</label><select id="txAlign"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+            <label for="txSpace">Spacing</label><input id="txSpace" type="number" step="0.1" value="0">
+          </div>
+          <div class="row chks"><label class="chk"><input id="txBold" type="checkbox"> Bold</label><label class="chk"><input id="txItal" type="checkbox"> Italic</label><button id="txLoad" title="Use a TTF / OTF / WOFF font file">Load font file</button></div>
+          <input id="txFile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden>
+          <p class="hint">Size is the font size (single-line: capital height). Single-line letters are one stroke each, for scoring.</p>
+        </details>
+        <details class="sec" data-sec="arrange" open>
+          <summary>Arrange</summary>
+          <div class="arr-h">On the bed</div>
+          <div class="row tight"><button data-bed="l">Left</button><button data-bed="cx">Center</button><button data-bed="r">Right</button><button data-bed="t">Top</button><button data-bed="cy">Middle</button><button data-bed="b">Bottom</button></div>
+          <div class="arr-h">Grid array</div>
+          <div class="row tight"><label class="inl"><input id="arCols" type="number" value="3" min="1" step="1"> across</label><label class="inl"><input id="arRows" type="number" value="2" min="1" step="1"> up</label><label class="inl">gap <input id="arGap" type="number" value="0.125" step="0.05" min="0"> in</label><button id="arGrid">Make</button></div>
+          <div class="arr-h">Circular array</div>
+          <div class="row tight"><label class="inl"><input id="arN" type="number" value="6" min="2" step="1"> copies</label><label class="inl">radius <input id="arRad" type="number" value="2" step="0.25" min="0.05"> in</label><label class="chk"><input id="arRot" type="checkbox" checked> turn</label><button id="arCirc">Make</button></div>
+        </details>
+        <div id="vecProps" style="display:none">
+          <details class="sec" data-sec="ops" open>
+            <summary>Operations</summary>
+            <div id="pathInfo" class="muted"></div>
+            <div class="row opbtns"><button data-op="cut">Cut</button><button data-op="score">Score</button><button data-op="fill">Fill</button><button data-op="off">Off</button></div>
+            <div class="row seg"><button id="pathOuter" title="Contours not inside any other contour">Outer</button><button id="pathInner" title="Contours inside another contour">Inner</button><button id="pathAll">All</button><button id="pathNone">None</button></div>
+            <p class="hint">Click a contour on the bed to pick it, Shift-click to add. Buttons apply to picked contours, or all if none are picked.</p>
+            <div class="opgrid">
+              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span><span class="h" title="Air assist">Air</span>
+              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1"><input id="op_cut_air" type="checkbox" title="Air assist on while cutting">
+              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1"><input id="op_score_air" type="checkbox" title="Air assist on while scoring">
+              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1"><input id="op_fill_air" type="checkbox" title="Air assist on while filling">
+            </div>
+            <div class="fgrid one"><label for="op_fill_interval">Fill line interval <small>mm</small></label><input id="op_fill_interval" type="number" step="0.01"></div>
+          </details>
+          <details class="sec" data-sec="vpreset">
+            <summary>Vector preset</summary>
+            <div class="row"><select id="vPreset" class="grow"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
+            <div class="row"><input id="vPresetName" class="grow" placeholder="Name, e.g. 1/8 birch ply"><button id="vSaveAs">Save as</button></div>
+          </details>
+        </div>
+      </div>
+      <details class="sec" data-sec="raster" open>
+        <summary id="rasterHdr">Raster: new image defaults</summary>
+        <div class="row"><select id="rPreset" class="grow"></select><button id="rPresetDel" class="icon" title="Delete this preset">Del</button></div>
+        <div class="fgrid">
+          <label for="rLpi">Lines / in</label><input id="rLpi" type="number" step="1" value="254">
+          <label for="rFeedS">Speed <small>mm/s</small></label><input id="rFeedS" type="number" step="5" value="50">
+          <label for="rPmin">Min power <small>%</small></label><input id="rPmin" type="number" step="1" value="0">
+          <label for="rPmax">Max power <small>%</small></label><input id="rPmax" type="number" step="1" value="60">
+          <label for="rOver">Overscan <small>in</small></label><input id="rOver" type="number" step="0.01" value="0.05">
+          <label for="rThresh">Skip below <small>%</small></label><input id="rThresh" type="number" step="1" value="3">
+        </div>
+        <div class="row chks">
+          <label class="chk"><input id="rDither" type="checkbox"> Dither</label>
+          <label class="chk"><input id="rInvert" type="checkbox"> Invert</label>
+          <label class="chk"><input id="rBidir" type="checkbox" checked> Bidirectional</label>
+          <label class="chk" title="Air assist on while engraving this image"><input id="rAir" type="checkbox"> Air</label>
+        </div>
+        <div class="row"><input id="rPresetName" class="grow" placeholder="Name, e.g. Poplar dithered photo"><button id="rSaveAs">Save as</button></div>
+      </details>
+    </div>
+
+    <!-- ===================== MACHINE ===================== -->
+    <div class="pane" data-pane="machine" role="tabpanel">
+      <details class="sec" data-sec="profile" open>
+        <summary>Machine profile</summary>
+        <div class="row"><select id="machSel" class="grow" aria-label="Machine profile"></select><button id="machNew">New</button><button id="machDel" class="danger">Delete</button></div>
+        <div class="fgrid one">
+          <label for="machName">Name</label><input id="machName">
+          <label for="machAir">Air assist</label><select id="machAir"><option value="M8">M8 (flood output)</option><option value="M7">M7 (mist output)</option><option value="">None</option></select>
+        </div>
+        <div id="machInfo" class="muted"></div>
+        <div class="row"><button id="machCapture" title="Store the controller's current $-settings in this profile">Save from controller</button><button id="machApply" class="warnb" title="Write the profile's saved $-settings that differ">Write saved</button></div>
+        <label class="chk"><input id="autoReconnect" type="checkbox" checked> Reconnect if the USB drops (never restarts a job)</label>
+        <p class="hint">Bed size and offsets are in Settings; the profile keeps them, plus port and baud.</p>
+      </details>
+      <details class="sec" data-sec="machine" open>
+        <summary>Machine</summary>
+        <div class="bgrid">
+          <button id="homeBtn"><svg class="ic"><use href="#i-home"/></svg>Home</button>
+          <button id="unlockBtn"><svg class="ic"><use href="#i-unlock"/></svg>Unlock</button>
+          <button id="resetBtn" title="Soft reset (Ctrl-X)"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+          <button id="zeroBtn" title="G10 L20 P1 X0 Y0: current spot becomes work 0,0"><svg class="ic"><use href="#i-zero"/></svg>Set zero here</button>
+          <button id="goZeroBtn"><svg class="ic"><use href="#i-zero"/></svg>Go to zero</button>
+        </div>
+      </details>
+      <details class="sec" data-sec="jog" open>
+        <summary>Jog</summary>
+        <div class="jogwrap">
+          <div class="jog">
+            <button data-j="-1,1" aria-label="Jog up-left">&#8598;</button><button data-j="0,1" aria-label="Jog up">&#9650;</button><button data-j="1,1" aria-label="Jog up-right">&#8599;</button>
+            <button data-j="-1,0" aria-label="Jog left">&#9664;</button><button id="jogCancel" title="Cancel jog" aria-label="Cancel jog">&#9632;</button><button data-j="1,0" aria-label="Jog right">&#9654;</button>
+            <button data-j="-1,-1" aria-label="Jog down-left">&#8601;</button><button data-j="0,-1" aria-label="Jog down">&#9660;</button><button data-j="1,-1" aria-label="Jog down-right">&#8600;</button>
+          </div>
+          <div class="fgrid one">
+            <label for="jogStep">Step <small>in</small></label>
+            <select id="jogStep"><option>0.01</option><option>0.05</option><option selected>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select>
+            <label for="jogFeedS">Feed <small>mm/s</small></label><input id="jogFeedS" type="number" value="40" step="5">
+          </div>
+        </div>
+        <p class="hint">Arrow keys jog. Double-click the bed to rapid there (laser off).</p>
+      </details>
+      <details class="sec" data-sec="frame" open>
+        <summary>Frame</summary>
+        <div class="fgrid one">
+          <label for="frameFeedS">Feed <small>mm/s</small></label><input id="frameFeedS" type="number" value="60" step="5">
+          <label class="chk"><input id="frameLaser" type="checkbox"> Low-power laser, S</label><input id="frameS" type="number" value="10" step="1" title="S value while framing">
+        </div>
+        <p class="hint">Keep frame S too low to mark the work. Goggles on.</p>
+      </details>
+      <details class="sec" data-sec="camera">
+        <summary>Camera</summary>
+        <div class="row"><select id="camSel" class="grow" aria-label="Camera"><option value="">(press Start)</option></select><button id="camOn">Start</button></div>
+        <div class="fgrid one">
+          <label class="chk"><input id="camShow" type="checkbox" checked> Show on the bed</label><span></span>
+          <label for="camOpacity">Opacity</label><input id="camOpacity" type="range" min="0.1" max="1" step="0.05" value="0.6">
+        </div>
+        <div id="camInfo" class="muted"></div>
+        <div class="arr-h">Calibrate (once per camera position)</div>
+        <div class="fgrid one"><label for="camMarkS">Mark power <small>%</small></label><input id="camMarkS" type="number" value="20" step="5" min="1" max="100"><label for="camMarkF">Mark speed <small>mm/s</small></label><input id="camMarkF" type="number" value="20" step="5" min="1"></div>
+        <div class="row tight"><button id="camBurn" class="warnb">1. Burn 4 marks</button><button id="camCal">2. Click the marks</button><button id="camForget" class="danger">Forget</button></div>
+        <p class="hint">Cover the bed with scrap first. Marks go 12% in from each corner and are numbered by ticks: 1 bottom-left, 2 bottom-right, 3 top-right, 4 top-left, as on the map. Then place art on the live picture of your scrap.</p>
+      </details>
+      <details class="sec" data-sec="errors">
+        <summary>Errors</summary>
+        <label class="chk"><input id="haltErr" type="checkbox" checked> Pause the job on a G-code error</label>
+      </details>
+    </div>
+
+    <!-- ===================== CONSOLE ===================== -->
+    <div class="pane" data-pane="console" role="tabpanel">
+      <div id="console"></div>
+      <input id="cmd" placeholder="Send command (Enter). Up/Down = history" autocomplete="off" aria-label="Send G-code command">
+    </div>
+  </aside>
+</main>
+
+<footer id="runbar" aria-label="Run">
+  <div class="runbtns">
+    <button id="frameBtn" title="Trace the job outline"><svg class="ic"><use href="#i-frame"/></svg>Frame</button>
+    <button id="startBtn" class="pri"><svg class="ic"><use href="#i-play"/></svg>Start</button>
+    <button id="pauseBtn" class="warnb"><svg class="ic"><use href="#i-pause"/></svg><span>Pause</span></button>
+  </div>
+  <div class="timer"><b id="tLeft">--:--</b><span id="tSub">no job</span></div>
+  <div class="progwrap"><progress id="prog" value="0" max="1"></progress><div id="progTxt">-</div></div>
+  <div class="gauges" aria-hidden="true">
+    <div class="gauge" id="gPower"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="26"/><circle class="arc" cx="32" cy="32" r="26"/><circle class="spin" cx="32" cy="32" r="20"/></svg><b>0</b><small>POWER %</small></div>
+    <div class="gauge" id="gSpeed"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="26"/><circle class="arc" cx="32" cy="32" r="26"/><circle class="spin" cx="32" cy="32" r="20"/></svg><b>0</b><small>MM/S</small></div>
+  </div>
+  <div class="ovs" title="Keys: [ ] speed, - = power, Space pause">
+    <div class="ov"><b>Speed</b><span id="ovF" class="pos">-</span>
+      <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144" title="Back to 100%">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
+    <div class="ov"><b>Power</b><span id="ovS" class="pos">-</span>
+      <button data-pw="-10">-10</button><button data-pw="-1">-1</button><button data-pw="job" title="Back to what the job set">Job</button><button data-pw="1">+1</button><button data-pw="10">+10</button></div>
+    <div class="ov ov3"><b>Rapid</b><span id="ovR" class="pos">-</span>
+      <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
+    <div id="pwInfo" title="Power is actual % of the laser's max ($30), capped at 100. A tweak lasts until the next operation.">-</div>
+  </div>
+</footer>
+
+<div id="camModal">
+  <div class="modal">
+    <h2>Camera calibration <button id="camClose" class="icon" aria-label="Close">&#10005;</button></h2>
+    <p id="camStep" class="hint"></p>
+    <div class="camwrap"><canvas id="camShot"></canvas><canvas id="camLoupe" width="180" height="180"></canvas></div>
+    <div class="row"><button id="camRetake">New snapshot</button><button id="camUndoPt">Undo point</button><span class="grow"></span><button id="camSaveCal" class="pri" disabled>Save calibration</button></div>
+  </div>
+</div>
+<div id="labModal">
+  <div class="modal">
+    <h2>Test Lab <button id="closeLab" class="icon" aria-label="Close">&#10005;</button></h2>
+    <div class="labtop">
+      <label>Material</label><input id="labMat" list="labMats" placeholder="e.g. Poplar" style="width:180px"><datalist id="labMats"></datalist>
+      <span class="sep"></span>
+      <label>Next slot</label><button id="labSlotPrev" class="icon">&#9664;</button><b id="labSlot" class="pos">1</b><button id="labSlotNext" class="icon">&#9654;</button><button id="labSlotReset">Reset</button>
+      <label>Slots per row</label><input id="labCols" type="number" min="1" max="20" style="width:56px">
+      <span class="grow"></span>
+      <button id="labReport">Report</button><button id="labCsv">CSV</button>
+    </div>
+    <p class="hint" style="margin:-6px 0 10px">Each test is a 1&times;1 in block. Slots step 30 mm in a grid from work zero (the blue W0 corner), so set zero on the scrap's corner first. Every burn moves to the next slot and gets logged below.</p>
+    <div class="labgrid">
+      <div id="labList"></div>
+      <div class="box" style="margin:0">
+        <h3 id="labTitle">-</h3>
+        <div id="labDesc" class="muted"></div>
+        <div id="labTuned" class="muted" style="margin-top:6px"></div>
+        <div id="labFields"></div>
+        <div class="row"><button id="labPreview">Preview</button><button id="labBurn" class="pri">Burn test block</button><button id="labSaveBtn" class="warnb">Save as tuned</button></div>
+        <div class="row"><button id="labUntune" title="Forget the tuned setting for this test">Clear tuned</button><button id="labClearBurns" title="Delete every logged burn for this test">Clear burns</button></div>
+        <hr>
+        <div class="sub">Burns for this test (newest first)</div>
+        <div id="labHist"></div>
+        <p class="hint" style="margin-top:6px">Mark each block good or bad and leave a note. "Use" saves that row's settings as tuned. Tuned settings build presets like "Poplar 1/8&quot;" (cut + score + fill) and "Poplar dither" that show up in the job panels.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="settingsModal">
+  <div class="modal">
+    <h2>Settings <button id="closeSettings" class="icon" aria-label="Close">&#10005;</button></h2>
+    <div class="mgrid">
+      <div class="box">
+        <h3>Bed</h3>
+        <div class="grid2">
+          <label>Width (in)</label><input id="bedW" type="number" step="0.125" value="15.75">
+          <label>Height (in)</label><input id="bedH" type="number" step="0.125" value="15.75">
+          <label>Machine X at bed left (in)</label><input id="bedX0" type="number" step="0.125" value="0">
+          <label>Machine Y at bed bottom (in)</label><input id="bedY0" type="number" step="0.125" value="0">
+        </div>
+        <div class="row"><button id="useTravelBtn">Use controller travel ($130/$131)</button></div>
+        <p class="hint">If homing makes MPos negative, set the offsets negative to match.</p>
+      </div>
+      <div class="box">
+        <h3>Motion (controller)</h3>
+        <div class="grid2">
+          <label>X accel (mm/s&sup2;) $120</label><input id="accX" type="number" step="50">
+          <label>Y accel (mm/s&sup2;) $121</label><input id="accY" type="number" step="50">
+          <label>X max rate (mm/s) $110</label><input id="maxX" type="number" step="5">
+          <label>Y max rate (mm/s) $111</label><input id="maxY" type="number" step="5">
+        </div>
+        <div class="row"><button id="writeCfgBtn" class="warnb">Write to controller</button></div>
+        <p class="hint">Read from $$ on connect. Writing saves to the board's EEPROM. Too much accel = skipped steps and a shifted burn, so creep up on it.</p>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Controller &amp; look</h3>
+        <div class="row"><label>Theme</label><select id="theme"><option value="hud">HUD</option><option value="classic">Classic</option></select>
+          <label>Effects</label><select id="fxLevel" title="Full: 3D, glow, particles, motion. Lite: 3D without glow/particles, still backdrop. Off: plain 2D."><option value="full">Full</option><option value="lite">Lite</option><option value="off">Off</option></select></div>
+        <div class="row"><label class="chk"><input id="fx3dAuto" type="checkbox" checked> Switch to 3D when a job starts</label><label class="chk"><input id="fxSound" type="checkbox"> Sounds</label></div>
+        <div id="ctlInfo" class="muted">Not connected.</div>
+        <div class="row"><button id="settingsBtn">Read $$</button><button id="resyncBtn" title="Clear the sender's buffer count if it ever desyncs">Resync buffer</button></div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Material profiles (Test Lab)</h3>
+        <div id="matProfiles"></div>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Material presets</h3>
+        <div id="presetList" class="muted">None saved yet.</div>
+        <div class="row"><button id="presetExport">Export presets</button><button id="presetImport">Import presets</button><input id="presetFile" type="file" accept=".json" hidden></div>
+        <p class="hint">Presets live in this browser. Export them for backup or to move machines.</p>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Keys</h3>
+        <div class="keys">
+          <span><kbd>Esc</kbd> STOP</span><span><kbd>Space</kbd> pause / resume</span><span><kbd>[</kbd> <kbd>]</kbd> speed</span><span><kbd>-</kbd> <kbd>=</kbd> power</span>
+          <span><kbd>V</kbd> select</span><span><kbd>H</kbd> pan</span><span><kbd>F</kbd> fit</span><span><kbd>T</kbd> 3D view</span><span><kbd>P</kbd> side panel</span>
+          <span><kbd>1</kbd>-<kbd>4</kbd> panel tabs</span><span><kbd>Ctrl</kbd>+<kbd>O</kbd> add file</span><span><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd><kbd>&darr;</kbd> jog / nudge</span><span><kbd>Del</kbd> delete object</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

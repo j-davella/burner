@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="8in" height="5in" viewBox="0 0 800 500">
+  <!-- every importer feature, small enough that the old O(n^2) sampler finishes quickly -->
+  <rect x="10" y="10" width="780" height="480" rx="25" fill="none" stroke="#000"/>
+  <rect x="40" y="40" width="120" height="60" ry="15" fill="none" stroke="#000"/>
+  <rect x="200" y="40" width="80" height="80" fill="none" stroke="#000"/>
+  <circle cx="380" cy="80" r="40" fill="none" stroke="#000"/>
+  <ellipse cx="520" cy="80" rx="70" ry="30" fill="none" stroke="#000"/>
+  <line x1="620" y1="40" x2="760" y2="120" stroke="#000"/>
+  <polyline points="40,160 80,200 120,160 160,200 200,160" fill="none" stroke="#000"/>
+  <polygon points="260,160 320,150 340,210 280,230 240,200" fill="none" stroke="#000"/>
+  <!-- arcs incl. packed flags, large-arc and sweep variants, rotation, radii too small -->
+  <path d="M400 200 a40 20 30 01 80 0 a40 20 30 10-80 0z" fill="none" stroke="#000"/>
+  <path d="M520 170 A30 30 0 1 1 580 170 A5 5 0 0 0 640 170" fill="none" stroke="#000"/>
+  <!-- relative curves, smooth S and T, H/V, two subpaths, implicit lineto after m -->
+  <path d="m40 300 c20-40 60-40 80 0 s60 40 80 0 q20-30 40 0 t40 0 h40 v40 h-280 z m20 10 l30 0 30 15 30-15" fill="none" stroke="#000"/>
+  <!-- nested + scaled + rotated groups -->
+  <g transform="translate(560 320) scale(1.5 0.8)">
+    <g transform="rotate(-20)">
+      <path d="M0 0 C 20 -40, 60 -40, 80 0 S 140 40, 160 0" fill="none" stroke="#000"/>
+      <circle cx="40" cy="60" r="20" fill="none" stroke="#000"/>
+    </g>
+  </g>
+  <path d="M100 420 Q 150 360 200 420 T 300 420 T 400 420" fill="none" stroke="#000"/>
+  <path d="M450 450 L 500 400 L550 450 Z M600 450 L650 400 L700 450 Z" fill="none" stroke="#000"/>
+  <defs><path id="hidden" d="M0 0 L 800 500"/></defs>
+</svg>
