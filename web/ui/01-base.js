@@ -63,6 +63,10 @@ const PERSIST = ['theme','mode','baud','jogStep','jogFeedS','bedW','bedH','bedX0
 function loadPrefs(){ try{ const p = JSON.parse(localStorage.getItem('burner.prefs')||'{}'); for(const k of PERSIST){ if(p[k]===undefined) continue; const el=$(k); if(el.type==='checkbox') el.checked=p[k]; else el.value=p[k]; } }catch{} }
 function savePrefs(){ try{ const p={}; for(const k of PERSIST){ const el=$(k); p[k]= el.type==='checkbox'?el.checked:el.value; } localStorage.setItem('burner.prefs',JSON.stringify(p)); }catch{} }
 loadPrefs();
+// Served from somewhere other than this PC (e.g. GitHub Pages): the bridge can't be reached
+// from there (it only answers pages it served), so use the browser's Web Serial instead.
+const REMOTE_PAGE = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && location.protocol!=='file:';
+if(REMOTE_PAGE) $('mode').value='webserial';
 PERSIST.forEach(k=>$(k).addEventListener('change',()=>{ savePrefs(); if(k.startsWith('bed')) fitView(); }));
 
 // ---------- console ----------

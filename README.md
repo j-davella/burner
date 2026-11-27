@@ -36,6 +36,10 @@ The browser opens http://localhost:8765. Pick the port, hit Connect.
 
 Options: `--port 9000` (or env `BURNER_PORT`), `--open`, `--sim-speed 20`.
 
+**In the browser, nothing installed** (Chrome or Edge)
+
+Open https://j-davella.github.io/burner/ and Connect: it uses the browser's Web Serial and asks which port. Same app, but no simulator, and projects/history are stored for that site separately from the bridge's.
+
 ## Screen
 
 STOP is always at the top right. The run bar along the bottom holds Frame / Start / Pause, the
