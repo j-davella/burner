@@ -170,7 +170,7 @@ const Camera = (()=>{
   $('camShow').addEventListener('change',()=>{ S.show=$('camShow').checked; S.fresh=true; dirty=true; });
   $('camOpacity').addEventListener('input',()=>{ S.opacity=+$('camOpacity').value; dirty=true; });
   $('machSel').addEventListener('change',()=>setTimeout(()=>{ S.rect=null; S.fresh=true; dirty=true; info(); },0));
-  document.querySelector('details[data-sec="camera"]').addEventListener('toggle', e=>{ if(e.target.open) listCams(); });
+  $('gearBtn').addEventListener('click', ()=>listCams());   // camera lives in Settings now
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeCal(); });
   S.opacity=+$('camOpacity').value; S.show=$('camShow').checked;
   info();

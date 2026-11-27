@@ -130,8 +130,6 @@ const Design = (()=>{
   }
 
   document.querySelectorAll('[data-mk]').forEach(b=>b.onclick=()=>{ const k=b.dataset.mk; if(k==='text') addText(false); else if(k==='stext') addText(true); else addShape(k); });
-  $('railShape').onclick=()=>addShape('rect');
-  $('railText').onclick=()=>addText(false);
 
   // ----- Object tab editors -----
   const _sync=syncProps;
