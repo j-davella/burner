@@ -100,6 +100,7 @@ function draw(){
   }
   g.setTransform(DPR,0,0,DPR,0,0);
   drawObjs(g);
+  if((typeof Resume!=='undefined')) try{ Resume.drawMarker(g); }catch{}
   // work zero
   if(st.known){
     const zx=px(st.wco[0]), zy=py(st.wco[1]);

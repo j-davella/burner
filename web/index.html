@@ -17,6 +17,8 @@
 <script defer src="ui/08-map.js"></script>
 <script defer src="ui/09-lab.js"></script>
 <script defer src="ui/10-shell.js"></script>
+<script defer src="ui/11-machine.js"></script>
+<script defer src="ui/12-resume.js"></script>
 <!-- effects: isolated on purpose. If it fails, effects switch off; controls never depend on it -->
 <script defer src="fx/fx.js"></script>
 </head>
@@ -99,6 +101,7 @@
     <canvas id="map"></canvas>
     <div id="hudStrip"></div>
     <div id="alarmBar" role="alert"><b>ALARM</b><span>Commands are locked.</span><button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
+    <div id="dropBar" role="alert"><span></span><button id="dropAct"></button><button id="dropX" class="icon" aria-label="Dismiss">&#10005;</button></div>
     <div id="layoutNote">Layout changed. It regenerates on Start or Frame.</div>
     <div id="mapHint">Scroll zoom &middot; drag empty space to pan &middot; F fit &middot; double-click to move the head there</div>
     <div id="hover"></div>
@@ -123,6 +126,15 @@
       <input id="gcFile" type="file" accept=".nc,.gcode,.gc,.ngc,.tap,.txt" hidden>
       <input id="imgFile" type="file" accept="image/*,.svg,.dxf" multiple hidden>
       <div id="jobInfo" class="card muted">No job loaded.</div>
+      <div id="resumeBox" class="card resume" hidden>
+        <div class="rh"><b>Job stopped</b><span id="resWhy"></span></div>
+        <div id="resWhere" class="muted"></div>
+        <div class="fgrid one"><label for="resLine">Resume from line</label><input id="resLine" type="number" min="1" step="1"></div>
+        <div class="row"><button id="resNearest" title="The move the head was on when it stopped">Where it stopped</button><button id="resBack" title="Start a little earlier (overlap instead of a gap)">Back a bit</button></div>
+        <ul id="resWarn"></ul>
+        <label class="chk"><input id="resAck" type="checkbox"> I checked the work and the warnings above</label>
+        <div class="row"><button id="resGo" class="pri"><svg class="ic"><use href="#i-play"/></svg><span>Resume</span></button><button id="resDiscard">Discard</button></div>
+      </div>
       <div id="rasterBox">
         <details class="sec" data-sec="objects" open>
           <summary>Objects</summary>
@@ -168,10 +180,10 @@
             <div class="row seg"><button id="pathOuter" title="Contours not inside any other contour">Outer</button><button id="pathInner" title="Contours inside another contour">Inner</button><button id="pathAll">All</button><button id="pathNone">None</button></div>
             <p class="hint">Click a contour on the bed to pick it, Shift-click to add. Buttons apply to picked contours, or all if none are picked.</p>
             <div class="opgrid">
-              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span>
-              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1">
-              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1">
-              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1">
+              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span><span class="h" title="Air assist">Air</span>
+              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1"><input id="op_cut_air" type="checkbox" title="Air assist on while cutting">
+              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1"><input id="op_score_air" type="checkbox" title="Air assist on while scoring">
+              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1"><input id="op_fill_air" type="checkbox" title="Air assist on while filling">
             </div>
             <div class="fgrid one"><label for="op_fill_interval">Fill line interval <small>mm</small></label><input id="op_fill_interval" type="number" step="0.01"></div>
           </details>
@@ -197,6 +209,7 @@
           <label class="chk"><input id="rDither" type="checkbox"> Dither</label>
           <label class="chk"><input id="rInvert" type="checkbox"> Invert</label>
           <label class="chk"><input id="rBidir" type="checkbox" checked> Bidirectional</label>
+          <label class="chk" title="Air assist on while engraving this image"><input id="rAir" type="checkbox"> Air</label>
         </div>
         <div class="row"><input id="rPresetName" class="grow" placeholder="Name, e.g. Poplar dithered photo"><button id="rSaveAs">Save as</button></div>
       </details>
@@ -204,6 +217,18 @@
 
     <!-- ===================== MACHINE ===================== -->
     <div class="pane" data-pane="machine" role="tabpanel">
+      <details class="sec" data-sec="profile" open>
+        <summary>Machine profile</summary>
+        <div class="row"><select id="machSel" class="grow" aria-label="Machine profile"></select><button id="machNew">New</button><button id="machDel" class="danger">Delete</button></div>
+        <div class="fgrid one">
+          <label for="machName">Name</label><input id="machName">
+          <label for="machAir">Air assist</label><select id="machAir"><option value="M8">M8 (flood output)</option><option value="M7">M7 (mist output)</option><option value="">None</option></select>
+        </div>
+        <div id="machInfo" class="muted"></div>
+        <div class="row"><button id="machCapture" title="Store the controller's current $-settings in this profile">Save from controller</button><button id="machApply" class="warnb" title="Write the profile's saved $-settings that differ">Write saved</button></div>
+        <label class="chk"><input id="autoReconnect" type="checkbox" checked> Reconnect if the USB drops (never restarts a job)</label>
+        <p class="hint">Bed size and offsets are in Settings; the profile keeps them, plus port and baud.</p>
+      </details>
       <details class="sec" data-sec="machine" open>
         <summary>Machine</summary>
         <div class="bgrid">

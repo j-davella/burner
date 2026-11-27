@@ -64,7 +64,7 @@ never covered or delayed by an effect.
 
 ## Simulator
 
-The port list always ends with **Simulator (no laser)**: a fake GRBL 1.1 inside the bridge. Use it to try the UI, plan a job, or check that a long file streams cleanly without a machine attached. It prints a loud `SIM RX OVERFLOW` message if the sender ever overruns GRBL's 127-byte buffer. `--sim-speed 20` runs it 20x faster than real time.
+The port list always ends with **Simulator (no laser)**: a fake GRBL 1.1 inside the bridge. Use it to try the UI, plan a job, or check that a long file streams cleanly without a machine attached. It prints a loud `SIM RX OVERFLOW` message if the sender ever overruns GRBL's 127-byte buffer. `--sim-speed 20` runs it 20x faster than real time. Its `$` settings and work zero survive reconnects, like a real controller's EEPROM. Type `/unplug` in the Console to fake a USB drop: the simulator vanishes for 4 s, then comes back powered up fresh (position lost, locked until homed).
 
 ## Safety
 
@@ -72,6 +72,16 @@ The port list always ends with **Simulator (no laser)**: a fake GRBL 1.1 inside 
 - If the browser tab dies or closes, the bridge sends feed hold + soft reset, so the laser shuts off.
 - STOP / Esc = feed hold + soft reset. Kills the job and the laser, no reboot.
 - Burner refuses to start a job if the controller reports `$32=0` (laser mode off).
+- A job counts as done only when every line is acknowledged **and** the controller is Idle (GRBL acks lines when it plans them, so the last moves are still burning).
+- Burner refuses a job that runs outside the machine travel (`$130`/`$131`) when soft limits are on (`$20=1`), and warns otherwise.
+
+## Machine robustness
+
+- **Machine profiles** (Machine tab): one per laser, with bed size and offsets, connection (mode, port, baud), air-assist command and a saved copy of the `$`-settings. Switch in one click while disconnected. On connect, Burner compares the controller's `$$` with the profile and warns about any difference; **Write saved** puts the profile's values back (two clicks).
+- **USB drops**: the laser is treated as stopped, Burner keeps reconnecting to the same port for 2 minutes, and **never restarts a job by itself**. On reconnect it sends feed hold + soft reset so nothing left in the controller keeps burning.
+- **Alarms and errors** come with plain-English text and the fix (all GRBL 1.1 codes). The alarm banner shows which limit switch is pressed; Home is hidden when homing is off (`$22=0`).
+- **Resume from a line** after STOP, an alarm, a reset or a drop: the Job tab suggests the move the head was on, marks it on the bed, and lists what to check (home first if position was lost, work zero moved, work piece). Resume rapids there with the laser off and restores units, distance mode, feed, laser mode, S and air before the line goes out. Checked by `tests/resume.test.mjs`: resuming at any line burns exactly what the original would have from there on.
+- **Air assist**: tick Air per operation (cut / score / fill) or per image. The machine profile says which output (M8, M7 or none). Jobs without air are byte-identical to before.
 
 There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow it) that skips the bridge's serial port. The page still has to be served over http, so run the bridge (or any local web server).
 
@@ -145,6 +155,7 @@ contour hit tests). A change that alters the G-code shows up here.
 ```
 node tests/engine.test.mjs        # engine + worker job path, no browser
 node tests/join.test.mjs          # fast contour joiner == original, incl. 30 random dense layouts
+node tests/resume.test.mjs        # resume-from-line burns the same as the original; air assist output
 python tests/capture_server.py    # serves the repo on :8799 and accepts POST /capture/<name>
 ```
 

@@ -3,7 +3,7 @@ $('connBtn').onclick = ()=> connected ? disconnect('user') : connect();
 $('portRefresh').onclick = refreshPorts;
 $('mode').addEventListener('change', ()=>{ const b=$('mode').value==='bridge'; $('portSel').style.display=$('portRefresh').style.display=b?'':'none'; if(b) refreshPorts(); });
 $('stopBtn').onclick = stopAll;
-$('resetBtn').onclick = ()=>{ if(!connected) return; job.running=false; manualQ=[]; rt(0x18); inflight=[]; bufUsed=0; updateUI(); };
+$('resetBtn').onclick = ()=>{ if(!connected) return; if(job.running) haltJob('Reset pressed', true); job.running=false; manualQ=[]; rt(0x18); inflight=[]; bufUsed=0; updateUI(); };
 $('homeBtn').onclick = $('alarmHome').onclick = ()=>{ if(canCommand()) queue('$H'); };
 $('unlockBtn').onclick = $('alarmUnlock').onclick = ()=>{ if(canCommand()) queue('$X'); };
 $('zeroBtn').onclick = ()=>{ if(canCommand()) queue('G10 L20 P1 X0 Y0'); };
@@ -33,6 +33,7 @@ const hist=[]; let hi=0;
 $('cmd').addEventListener('keydown', e=>{
   if(e.key==='Enter'){ const v=$('cmd').value.trim(); if(!v) return;
     hist.push(v); hi=hist.length; $('cmd').value='';
+    if(v==='/unplug'){ if(ws && ws.readyState===1) ws.send(JSON.stringify({cmd:'simunplug', secs:4})); log('> simulated USB unplug (simulator only)','tx'); return; }
     if(v==='?'){ rt(0x3F); return; } if(v==='!'){ rt(0x21); return; } if(v==='~'){ rt(0x7E); return; }
     if(canCommand()) queue(v);
   } else if(e.key==='ArrowUp'){ if(hi>0){ hi--; $('cmd').value=hist[hi]; } e.preventDefault(); }
@@ -70,9 +71,21 @@ function updateUI(){
   $('ovS').textContent = pa!==null ? Math.round(pa)+'%' : '-';
   $('pwInfo').textContent = pa!==null ? 'job set '+Math.round(jm/smax()*100)+'%'+(st.ov[2]!==100?' -> now '+Math.round(pa)+'%':'')+' of laser' : 'adjusts while burning';
   $('ovF').style.color = ov&&st.ov[0]!==100?'var(--warn)':''; $('ovS').style.color = ov&&st.ov[2]!==100?'var(--warn)':'';
-  $('alarmBar').style.display = connected && st.state==='Alarm' ? 'flex' : 'none';
+  const inAlarm = connected && st.state==='Alarm';
+  $('alarmBar').style.display = inAlarm ? 'flex' : 'none';
+  if(inAlarm){
+    const c=st.alarm, pins=(st.pn||'').replace(/[^XYZP]/g,'');
+    const txt = c==='lock' ? 'Locked after power-up or reset. Home ($H) so positions are real.'
+      : ALM[c] ? 'ALARM '+c+': '+ALM[c][0]+' '+ALM[c][1] : 'Commands are locked. Unlock ($X) or Home ($H).';
+    const full = txt + (pins ? ' Switch pressed now: '+pins.split('').join(', ')+'.' : '');
+    const sp=$('alarmBar').querySelector('span'); if(sp.textContent!==full) sp.textContent=full;
+  }
+  const noHome = settings[22]==='0';
+  $('alarmHome').style.display = noHome ? 'none' : '';
+  $('homeBtn').title = noHome ? 'Homing is off on this controller ($22=0)' : 'Run the homing cycle ($H)';
   const idle = connected && !job.running;
   ['homeBtn','unlockBtn','zeroBtn','goZeroBtn','settingsBtn','frameBtn'].forEach(id=>$(id).disabled=!idle);
+  if(noHome) $('homeBtn').disabled=true;
   $('startBtn').disabled = !(idle && sawBanner && job.lines.length && st.state==='Idle');
   $('pauseBtn').disabled = !(connected && job.running);
   { const held=job.paused||st.state==='Hold', pb=$('pauseBtn'); (pb.querySelector('span')||pb).textContent = held ? 'Resume' : 'Pause'; const u=pb.querySelector('use'); if(u) u.setAttribute('href', held?'#i-play':'#i-pause'); }

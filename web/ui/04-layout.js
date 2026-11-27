@@ -154,6 +154,7 @@ function syncProps(){
   if(!im){
     for(const op of OPS) for(const k of ['power','feed','passes']) set('op_'+op+'_'+k, sel.set[op][k]);
     set('op_fill_interval', sel.set.fill.interval);
+    for(const op of OPS) $('op_'+op+'_air').checked=!!sel.set[op].air;
     const cnt={cut:0,score:0,fill:0,off:0}; sel.pathOp.forEach(o=>cnt[o]++);
     $('pathInfo').innerHTML = '<b style="color:var(--tx)">'+sel.psel.size+'</b> of '+sel.polys.length+' contours picked &middot; <span style="color:#ff5a6a">cut '+cnt.cut+'</span> &middot; <span style="color:#3ce0ff">score '+cnt.score+'</span> &middot; <span style="color:#2ee59d">fill '+cnt.fill+'</span> &middot; off '+cnt.off;
     fillPresetSel('vPreset','vector', sel.preset||'');
@@ -169,6 +170,7 @@ for(const op of OPS){
   numIn('op_'+op+'_passes',v=>{ if(sel.set){ sel.set[op].passes=Math.max(1,Math.round(v)); sel.preset=''; } });
 }
 numIn('op_fill_interval',v=>{ if(sel.set){ sel.set.fill.interval=Math.max(0.02,v); sel.preset=''; } });
+for(const op of OPS) $('op_'+op+'_air').addEventListener('change',()=>{ if(sel && sel.set){ sel.set[op].air=$('op_'+op+'_air').checked; sel.preset=''; layoutChanged(); } });
 document.querySelectorAll('[data-op]').forEach(b=>b.onclick=()=>{
   if(!sel||sel.type!=='vec') return;
   const op=b.dataset.op, idx = sel.psel.size ? [...sel.psel] : sel.polys.map((_,i)=>i);

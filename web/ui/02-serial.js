@@ -6,6 +6,7 @@ const st = { state:'Offline', m:[0,0,0], w:[0,0,0], wco:[0,0,0], f:0, s:0, known
 const dec = new TextDecoder();
 // transport: {send(Uint8Array), close()} ; bridge (WebSocket to burner_bridge.py) or Web Serial
 let tp = null;
+let userClosing = false;            // Disconnect was pressed: don't auto-reconnect
 
 function rawSend(bytes){ if(tp) tp.send(bytes); }
 function rt(b){ rawSend(new Uint8Array([b])); }
@@ -19,9 +20,11 @@ function onBytes(u8){
   }
 }
 function onOpened(desc){
-  connected=true; sawBanner=false; askedSettings=false; inflight=[]; bufUsed=0; manualQ=[]; rxSize=127; rxText='';
+  connected=true; sawBanner=false; askedSettings=false; inflight=[]; bufUsed=0; manualQ=[]; rxSize=127; rxText=''; userClosing=false;
+  st.alarm=null;
   $('connBtn').textContent='Disconnect';
   log('Port open: '+desc,'acc');
+  if((typeof Machines!=='undefined')) Machines.onOpened();
   setTimeout(()=>{ if(connected && !sawBanner){ log('No banner yet, sending soft reset','dim'); rt(0x18); } }, 1800);
   clearInterval(pollTimer);
   pollTimer = setInterval(()=>{ if(connected) rt(0x3F); }, 200);
@@ -30,15 +33,18 @@ function onOpened(desc){
 function onClosed(why){
   if(!connected && !tp) return;
   connected=false; clearInterval(pollTimer); tp=null;
-  if(job.running){ job.running=false; job.paused=false; log('Job aborted: disconnected','bad'); }
+  const mid = job.running;
+  if(mid){ haltJob('connection lost ('+(why||'unknown')+')', true); log('Job aborted: disconnected. The laser is treated as stopped; the job will NOT restart by itself.','bad'); }
   inflight=[]; bufUsed=0; manualQ=[];
   st.state='Offline'; st.known=false;
   $('connBtn').textContent='Connect';
   log('Disconnected'+(why?' ('+why+')':''),'warn');
+  const byUser = userClosing; userClosing=false;
   updateUI();
+  if((typeof Machines!=='undefined')) Machines.onClosed(why, byUser, mid);
 }
 function connect(){ return $('mode').value==='bridge' ? connectBridge() : connectWebSerial(); }
-function disconnect(why){ if(tp) tp.close(why); else onClosed(why); }
+function disconnect(why){ if(why==='user') userClosing=true; if(tp) tp.close(why); else onClosed(why); }
 
 // ----- bridge mode -----
 let ws=null, wsReady=null;
@@ -54,10 +60,10 @@ function ensureWS(){
     s.onmessage = e=>{
       if(typeof e.data !== 'string'){ if(tp && tp.kind==='bridge') onBytes(new Uint8Array(e.data)); return; }
       let m; try{ m=JSON.parse(e.data); }catch{ return; }
-      if(m.ev==='ports') fillPorts(m.ports);
+      if(m.ev==='ports'){ fillPorts(m.ports); if((typeof Machines!=='undefined')) Machines.onPorts(m.ports); }
       else if(m.ev==='opened'){ tp = { kind:'bridge', send:b=>{ if(ws&&ws.readyState===1) ws.send(b); }, close:()=>{ ws&&ws.send(JSON.stringify({cmd:'close'})); } }; onOpened(m.port+' @ '+m.baud+' (bridge)'); }
       else if(m.ev==='closed'){ if(tp && tp.kind==='bridge') onClosed(m.why); }
-      else if(m.ev==='error') log('Bridge: '+m.msg,'bad');
+      else if(m.ev==='error'){ if(!((typeof Machines!=='undefined') && Machines.quietError(m.msg))) log('Bridge: '+m.msg,'bad'); }
     };
   });
   return wsReady;
@@ -80,13 +86,16 @@ async function connectBridge(){
 }
 
 // ----- Web Serial mode -----
-async function connectWebSerial(){
-  if(!('serial' in navigator)){ log('Web Serial not available in this browser. Use Bridge mode.','bad'); return; }
+// given: an already-granted SerialPort (auto-reconnect), so no picker is shown
+let wsPortInfo=null;
+async function connectWebSerial(given){
+  if(!('serial' in navigator)){ log('Web Serial not available in this browser. Use Bridge mode.','bad'); return false; }
   let port, reader, writer;
   try{
-    port = await navigator.serial.requestPort();
+    port = given || await navigator.serial.requestPort();
     await port.open({ baudRate:+$('baud').value, bufferSize:8192 });
-  }catch(e){ log('Connect failed: '+e.message,'bad'); return; }
+  }catch(e){ if(!given) log('Connect failed: '+e.message,'bad'); return false; }
+  try{ wsPortInfo = port.getInfo(); }catch{}
   writer = port.writable.getWriter();
   let closing=false;
   tp = { kind:'webserial',
@@ -119,7 +128,7 @@ function pump(){
 }
 function queue(...lines){
   if(!connected){ log('Not connected','bad'); return false; }
-  for(const l of lines){ const c = l.trim(); if(c) manualQ.push(c); }
+  for(const l of lines){ const c = l.trim(); if(c){ manualQ.push(c); if(/^\$H$/i.test(c) && job.halt) job.halt.homed=true; } }
   pump(); return true;
 }
 function canCommand(){
@@ -137,31 +146,38 @@ function onLine(l){
     if(l.startsWith('error')){
       const code = +l.split(':')[1];
       log((it?it.line+'  ->  ':'')+l+(ERR[code]?'  '+ERR[code]:''),'bad');
-      if(it && it.jobIdx>=0 && $('haltErr').checked && !job.paused){ pauseJob(); log('Job paused on error (line '+(it.jobIdx+1)+'). Resume or STOP.','warn'); }
-    } else if(it && it.jobIdx<0){ log('ok','dim'); }
-    if(job.running && job.idx>=job.lines.length && job.acked>=job.lines.length && inflight.length===0) jobDone();
+      if(it && it.jobIdx<0 && job.running){ log('A resume setup line failed, so the job was stopped before burning anything.','bad'); stopAll(); }
+      else if(it && it.jobIdx>=0 && $('haltErr').checked && !job.paused){ pauseJob(); log('Job paused on error (line '+(it.jobIdx+1)+'). Resume or STOP.','warn'); }
+    } else if(it && it.jobIdx<0){ log('ok','dim');
+      const sm=/^\$(\d+)=(.+)$/.exec(it.line); if(sm){ settings[sm[1]]=sm[2]; updateCtlInfo(); if(typeof Machines!=='undefined') Machines.onSetting(); } }
+    // every line acked only means planned: the last moves are still burning. Done = acked + Idle.
+    if(job.running && job.idx>=job.lines.length && job.acked>=job.lines.length && inflight.length===0){ job.drain=true; job.drainT=performance.now(); rt(0x3F); }
     pump(); return;
   }
   if(l.startsWith('ALARM')){
     const code = +l.split(':')[1];
-    log(l+'  '+(ALM[code]||''),'bad');
-    if(job.running){ job.running=false; job.paused=false; manualQ=[]; log('Job aborted by alarm','bad'); }
+    st.alarm = code;
+    log(l+'  '+almText(code),'bad');
+    if(job.running){ haltJob('ALARM:'+code+' '+(ALM[code]?ALM[code][0]:''), !(ALM[code] && ALM[code][2])); manualQ=[]; log('Job aborted by alarm','bad'); }
+    else if(job.halt && ALM[code] && !ALM[code][2]) job.halt.lost=true;
     updateUI(); return;
   }
   if(/^Grbl/i.test(l)){
     sawBanner=true; inflight=[]; bufUsed=0; manualQ=[];
-    if(job.running){ job.running=false; job.paused=false; log('Job ended: controller reset','warn'); }
+    if(job.running){ haltJob('controller reset itself', true); log('Job ended: controller reset','warn'); }
     log(l,'acc');
     if(!askedSettings){ askedSettings=true; setTimeout(()=>queue('$$'), 300); }
     updateUI(); return;
   }
   const m = /^\$(\d+)=(.*)$/.exec(l);
-  if(m){ settings[m[1]] = m[2]; log(l,'dim'); updateCtlInfo(); return; }
+  if(m){ settings[m[1]] = m[2]; log(l,'dim'); updateCtlInfo(); if((typeof Machines!=='undefined')) Machines.onSetting(); return; }
+  if(/^\[MSG:.*'\$H'\|'\$X' to unlock/.test(l)){ if(typeof st.alarm!=='number') st.alarm='lock'; log(l+'  Homing is on, so the controller locks after power-up or a reset until it knows where the head is. Home ($H).','warn'); updateUI(); return; }
   log(l, /^\[MSG/.test(l)?'warn':undefined);
 }
 
 function onStatus(r){
-  st.state = r.state; st.sub = r.sub;
+  st.state = r.state; st.sub = r.sub; st.pn = r.pn||'';
+  if(st.state!=='Alarm') st.alarm=null;
   if(r.wco) st.wco = r.wco;
   if(r.mpos){ st.m = r.mpos; st.w = r.mpos.map((v,i)=>v-(st.wco[i]||0)); }
   else if(r.wpos){ st.w = r.wpos; st.m = r.wpos.map((v,i)=>v+(st.wco[i]||0)); }
@@ -170,6 +186,7 @@ function onStatus(r){
   if(job.running){ const now=performance.now(); if(st.state==='Hold'){ if(!job.holdStart) job.holdStart=now; } else if(job.holdStart){ job.holdMs+=now-job.holdStart; job.holdStart=0; } }
   if(r.bf && inflight.length===0 && !job.running && r.bf[1]>16) rxSize = r.bf[1]-1;
   st.known = true;
+  if(job.running && job.drain && st.state==='Idle' && performance.now()-job.drainT>50) jobDone();
   updateUI(); dirty = true;
 }
 

@@ -27,7 +27,7 @@ function updateHudStrip(){
 const PRE_KEY='burner.presets';
 let presets=[]; try{ presets=JSON.parse(localStorage.getItem(PRE_KEY)||'[]'); }catch{}
 function savePresets(){ try{ localStorage.setItem(PRE_KEY, JSON.stringify(presets)); }catch(e){ log('Could not save presets: '+e.message,'bad'); } listPresets(); }
-const RFIELDS=['rLpi','rFeedS','rPmin','rPmax','rOver','rThresh','rDither','rInvert','rBidir'];
+const RFIELDS=['rLpi','rFeedS','rPmin','rPmax','rOver','rThresh','rDither','rInvert','rBidir','rAir'];
 function fillPresetSel(id,type,pick){
   const el=$(id), cur=pick!==undefined?pick:el.value; el.innerHTML='<option value="">Material preset...</option>';
   presets.filter(p=>p.type===type).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; el.appendChild(o); });

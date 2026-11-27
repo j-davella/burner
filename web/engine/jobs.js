@@ -38,12 +38,15 @@ export function genJob(a, progress){
     if(im.dither) Core.dither(dark, im.cols, im.rows);
     if(im.thumb) thumb={ cols:im.cols, rows:im.rows, rgba:thumbRGBA(dark) };
     lines.push('; raster '+im.name);
+    const air=a.air && im.air;
+    if(air) lines.push(a.air);
     const rg=Core.rasterGcode(dark, im.cols, im.rows, im.opts, r=>progress((done+r)/total, 'Raster '+im.name));
     for(let i=0;i<rg.length;i++) lines.push(rg[i]);
+    if(air) lines.push('M9');
     done+=im.rows;
   }
   progress(done/total, 'Vectors');
-  vectorGcode(a.vecs, a.SM, lines);
+  vectorGcode(a.vecs, a.SM, lines, a.air || '');
   lines.push('M5 S0','G0 X0 Y0');
   progress(1, 'Preview');
   return { text:lines.join('\n'), count:lines.length, thumb, ...analyze(lines, a.settings, a.smax) };

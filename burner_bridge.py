@@ -363,6 +363,11 @@ SIM_SETTINGS = [(0, "10"), (1, "25"), (2, "0"), (3, "0"), (4, "0"), (5, "0"), (6
                 (100, "80.000"), (101, "80.000"), (102, "80.000"), (110, "6000.000"), (111, "6000.000"),
                 (112, "1000.000"), (120, "500.000"), (121, "500.000"), (122, "100.000"), (130, "400.000"),
                 (131, "400.000"), (132, "50.000")]
+# simulated USB unplug (test hook, simulator only): the "device" vanishes for a few
+# seconds, then comes back powered-up fresh: position lost and, homing being on, locked.
+SIM_UNPLUG = {"until": 0.0, "replugged": False}
+# the simulated controller's EEPROM: $-settings and G54 survive reconnects, like real GRBL
+SIM_EEPROM = {"settings": dict(SIM_SETTINGS), "g54": [0.0, 0.0, 0.0]}
 _WORD = re.compile(r"([A-Z])([-+]?(?:\d+\.?\d*|\.\d+))")
 
 
@@ -379,13 +384,19 @@ class SimGrbl:
     def __init__(self, path, baud, loop, on_data, on_close):
         self.loop, self.on_data, self.on_close = loop, on_data, on_close
         self.closed = False
-        self.settings = {k: v for k, v in SIM_SETTINGS}
+        if time.monotonic() < SIM_UNPLUG["until"]:
+            raise OSError(2, "device not present (simulated unplug)")
+        self.settings = SIM_EEPROM["settings"]
         self.speed = SIM_SPEED
         self.overflows = 0
         self.state = "Idle"
         self.m = [0.0, 0.0, 0.0]
-        self.wco = [0.0, 0.0, 0.0]
+        self.wco = SIM_EEPROM["g54"]
         self._reset(boot=True)
+        if SIM_UNPLUG["replugged"]:                      # power-up after the unplug
+            SIM_UNPLUG["replugged"] = False
+            self.state = "Alarm"
+            self.m = [37.0, 21.5, 0.0]                   # wherever the head ended up
         self.task = loop.create_task(self._run())
 
     # --- state ---
@@ -663,6 +674,8 @@ def list_ports():
     except Exception as e:
         say("port scan failed:", e)
         ports = []
+    if time.monotonic() < SIM_UNPLUG["until"]:
+        return ports
     return ports + [{"path": SIM_PATH, "label": "Simulator (no laser)", "sim": True}]
 
 
@@ -811,6 +824,14 @@ async def handle_ws(ws):
                     ws.send_json({"ev": "error", "msg": "Open %s failed: %s" % (port, e)})
             elif cmd == "close":
                 close_serial("closed by user")
+            elif cmd == "simunplug":
+                s = current["ser"]
+                if isinstance(s, SimGrbl) and not s.closed:
+                    SIM_UNPLUG["until"] = time.monotonic() + float(c.get("secs", 4))
+                    SIM_UNPLUG["replugged"] = True
+                    s.close("device disconnected (simulated unplug)")
+                else:
+                    ws.send_json({"ev": "error", "msg": "simunplug only works on the simulator"})
     except (asyncio.IncompleteReadError, ConnectionError):
         pass
     finally:

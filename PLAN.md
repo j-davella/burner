@@ -1,6 +1,6 @@
 # Burner — upgrade plan (2026-11-26)
 
-Status: phases 0, 1, 2, 3 and 3b done on branch `upgrade`. Next: 4 (machine robustness).
+Status: phases 0-4 (and 3b) done on branch `upgrade`. Next: 5 (design tools).
 Note: 3b uses raw WebGL2 (web/fx/fx.js) instead of vendoring three.js: no download, nothing to trust, ~30 KB.
 
 Decisions so far: keep the browser UI + stdlib Python bridge, polish the HUD
@@ -88,5 +88,26 @@ no npm). Everything runs on the GPU, so it adds no lag to the burn.
 ## Phase 7 — Camera alignment
 - USB camera via the browser; calibrate by burning 4 marks and clicking them
   (perspective fix); live overlay on the bed with opacity; place art on scrap.
+
+## Phase 8 - Wireless: Pi at the laser (later date, agreed 2026-11-26)
+A Raspberry Pi (or spare Linux box, NixOS) sits at the laser on USB and runs the
+bridge; any PC/laptop/phone opens the app over Wi-Fi.
+- Bridge owns the job: browser uploads the whole job once, the bridge streams it
+  (port the character-counting pump from 02-serial.js to Python). A Wi-Fi drop
+  only drops the view; reopen the page and see progress again.
+- STOP handled in the bridge (real-time bytes, never queued behind job lines).
+- Several screens at once, each with a working STOP and live status.
+- LAN mode with a PIN (today the bridge only accepts this PC, on purpose).
+- Setting for "every screen gone mid-job": keep burning or pause after N seconds.
+  A physical e-stop / power switch within reach is still expected.
+- `tcp://` port type too, so an ESP32 Wi-Fi serial module (ESP3D/ESP-Link) also works.
+- NixOS module on the Pi runs the bridge as a service.
+- Camera moves to the Pi: mounted above the bed, streamed by the Pi to the browser
+  (replaces Phase 7's camera-on-this-PC assumption; same calibration/overlay).
+- Pointer laser: a low-power red-dot module on the head, switched by a Pi GPIO pin
+  (MOSFET/relay), never the burn laser. Shows where a job will land, and lets the
+  camera be calibrated by pointing at spots instead of burning marks.
+- Needs answers first: laser model, Pi model, camera model, how the pointer's
+  wire reaches the head.
 
 Each phase gets its own commit on a branch. Nothing is pushed until you say so.

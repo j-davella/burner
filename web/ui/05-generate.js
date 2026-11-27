@@ -64,7 +64,8 @@ function generateLayout(){
   if(!act.length){ log(objs.length?'Every object is turned off. Check one in the Objects list.':'Nothing on the layout','warn'); return Promise.resolve(false); }
   const imgs=act.filter(o=>o.type==='img'), vecs=act.filter(o=>o.type==='vec');
   let pitch=0;
-  const req={ imgs:[], vecs:[], SM:smax(), settings:{...settings}, smax:smax() };
+  const air=Machines.air();
+  const req={ imgs:[], vecs:[], SM:smax(), settings:{...settings}, smax:smax(), air };
   $('thumb').style.display='none';
   for(const o of imgs){
     const r=o.r||readRaster(), lpi=+r.rLpi; if(!(lpi>0)){ log('Bad LPI on '+o.name,'bad'); return Promise.resolve(false); }
@@ -78,13 +79,14 @@ function generateLayout(){
     g.save(); g.translate((o.x-B.x0)/p,(B.y1-o.y)/p); g.rotate(-rad(o.rot));
     const w=oW(o)/p, h=oH(o)/p; g.drawImage(o.img,o.cx,o.cy,o.cw,o.ch,-w/2,-h/2,w,h); g.restore();
     const SM=smax();
-    req.imgs.push({ name:o.name, px:g.getImageData(0,0,cols,rows).data, cols, rows, inv:!!r.rInvert, dither:!!r.rDither,
+    req.imgs.push({ name:o.name, air:!!r.rAir, px:g.getImageData(0,0,cols,rows).data, cols, rows, inv:!!r.rInvert, dither:!!r.rDither,
       thumb:(o===sel || imgs.length===1),
       opts:{ pitch:p, feed:(+r.rFeedS||50)*60, smin:SM*(+r.rPmin||0)/100, smax:SM*(+r.rPmax||0)/100,
              over:(+r.rOver||0)*MM, thresh:(+r.rThresh||0)/100, bidir:!!r.rBidir, ox:B.x0, oy:B.y1-rows*p } });
     pitch=Math.max(pitch,p);
   }
   for(const o of vecs) req.vecs.push({ name:o.name, polys:o.polys, cw:o.cw, ch:o.ch, sx:o.sx, sy:o.sy, rot:o.rot, x:o.x, y:o.y, pathOp:o.pathOp, set:o.set });
+  if(!air && (imgs.some(o=>(o.r||readRaster()).rAir) || vecs.some(o=>OPS.some(op=>o.set[op].air)))) log('Air assist is ticked, but this machine profile has no air command (Machine tab). No air.','warn');
   const name=act.length===1?act[0].name:act.map(o=>o.name).join(' + ');
   const ver=layoutVer;
   let mainMs=0; const pre=performance.now()-t0;
