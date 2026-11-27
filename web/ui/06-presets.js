@@ -3,13 +3,6 @@ const isHud=()=>document.body.classList.contains('hud');
 function applyTheme(){ document.body.classList.toggle('hud', $('theme').value!=='classic'); try{ staticKey=''; dirty=true; }catch{} }
 $('theme').addEventListener('change', applyTheme);
 document.body.classList.toggle('hud', $('theme').value!=='classic');
-(function boot(){
-  if(!isHud()) return; const b=$('boot');
-  const L=['BURNER // GRBL LASER CONTROL','INITIALIZING MOTION CORE.......... OK','SERIAL BRIDGE LINK................ STANDBY','RASTER / VECTOR ENGINE............ ONLINE','SAFETY INTERLOCK: ESC = STOP...... ARMED','','READY.'];
-  b.innerHTML='<svg class="ring" viewBox="0 0 100 100"><g style="transform-origin:50% 50%;animation:spin 2s linear infinite"><circle cx="50" cy="50" r="44" fill="none" stroke="#00e5ff" stroke-width="2" stroke-dasharray="40 14" style="filter:drop-shadow(0 0 6px #00e5ff)"/></g><g style="transform-origin:50% 50%;animation:spin 1.2s linear infinite reverse"><circle cx="50" cy="50" r="32" fill="none" stroke="#7ff3ff" stroke-width="1.5" stroke-dasharray="6 6"/></g><circle cx="50" cy="50" r="12" fill="#7ff3ff" style="filter:drop-shadow(0 0 10px #00e5ff)"/></svg>'+L.map((l,i)=>'<div class="ln" style="animation-delay:'+(i*0.14)+'s">'+(l||' ')+'</div>').join('');
-  b.classList.add('go'); const end=()=>{ b.style.opacity='0'; setTimeout(()=>b.classList.remove('go'),400); };
-  b.onclick=end; setTimeout(end,1500);
-})();
 function updateHudStrip(){
   if(!isHud()) return;
   const k=(a,b,c)=>'<span><span class="k">'+a+'</span> <span class="'+(c||'')+'">'+b+'</span></span>';
@@ -38,6 +31,7 @@ function vecDesc(v){ v=vecSet(v); return 'cut '+v.cut.power+'%/'+v.cut.feed+'mm/
 function rasterDesc(v){ return v.rLpi+' lpi, '+v.rFeedS+' mm/s, '+v.rPmin+'-'+v.rPmax+'%'+(v.rDither?', dithered':'')+(v.rInvert?', inverted':''); }
 function listPresets(){
   fillPresetSel('rPreset','raster'); fillPresetSel('vPreset','vector');
+  if(typeof Material!=='undefined') Material.fill();
   const el=$('presetList'); el.innerHTML='';
   if(!presets.length){ el.textContent='None saved yet.'; return; }
   presets.slice().sort((a,b)=>a.type.localeCompare(b.type)||a.name.localeCompare(b.name)).forEach(p=>{
@@ -106,3 +100,47 @@ $('useTravelBtn').onclick=()=>{
   if(!settings[130]){ log('Read $$ first (connect to the laser)','warn'); return; }
   $('bedW').value=(+settings[130]/MM).toFixed(3); $('bedH').value=(+settings[131]/MM).toFixed(3); savePrefs(); fitView();
 };
+
+// ---------- current material: one setting for every vector object ----------
+// Picks a vector preset (Test Lab tuning makes these, e.g. "Poplar engrave", "Poplar 1/8\"").
+// New SVG / DXF / shapes / text start from it, and picking one applies it to everything.
+var Material = (()=>{   // var: listPresets() runs before this line and checks typeof
+  const KEY='burner.material';
+  let cur=''; try{ cur=localStorage.getItem(KEY)||''; }catch{}
+  const clone=v=>JSON.parse(JSON.stringify(v));
+  const find=n=>presets.find(p=>p.type==='vector'&&p.name===n);
+  function ops(){ const p=cur&&find(cur); return p ? clone(vecSet(p.v)) : null; }
+  function info(){
+    const el=$('matInfo'); if(!el) return; const p=cur&&find(cur);
+    el.textContent = p ? vecDesc(p.v) : 'Built-in starting values. Tune a material in the Test Lab, then pick it here.';
+  }
+  function fill(){
+    const el=$('matSel'); if(!el) return;
+    if(cur && !find(cur)) cur='';
+    el.innerHTML='<option value="">Default settings</option>';
+    presets.filter(p=>p.type==='vector').sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{ const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; el.appendChild(o); });
+    el.value=cur; info();
+  }
+  // apply to vector objects: all of them, or only those still on a setting of `only` (a material name)
+  function apply(name, only){
+    cur=name||''; try{ localStorage.setItem(KEY,cur); }catch{}
+    const v=ops()||defaultOps(); let n=0;
+    for(const o of objs){
+      if(o.type!=='vec') continue;
+      if(only!==undefined && !(o.preset===undefined || o.preset===cur || (o.preset||'').startsWith(only+' '))) continue;
+      o.set=clone(v); o.preset=cur||undefined; n++;
+    }
+    fill();
+    if(n){ layoutChanged(); log('Material '+(cur||'default')+' applied to '+n+' object'+(n>1?'s':''),'dim'); }
+  }
+  // after the Test Lab saves a tuned value for material `name`
+  function afterTune(name){
+    const mine=presets.filter(p=>p.type==='vector'&&p.name.startsWith(name+' ')).map(p=>p.name);
+    if(!mine.length) return;
+    const pick = mine.includes(cur) ? cur : (mine.find(n=>n.endsWith(' engrave'))||mine.sort()[0]);
+    apply(pick, name);
+  }
+  $('matSel').onchange=()=>apply($('matSel').value);
+  fill();
+  return { ops, fill, apply, afterTune, current:()=>cur };
+})();

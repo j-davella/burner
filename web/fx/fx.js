@@ -17,8 +17,8 @@ const get=(k,d)=>{ try{ const v=localStorage.getItem(LS+k); return v===null?d:JS
 const put=(k,v)=>{ try{ localStorage.setItem(LS+k, JSON.stringify(v)); }catch{} };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const S = {                                   // fx state
-  level: get('level', reduced ? 'lite' : 'full'),
-  auto3d: get('auto3d', true), sound: get('sound', false),
+  level: get('level2', 'lite'),               // 'lite' shows as "Simple" in Settings
+  auto3d: get('auto3d2', false), sound: get('sound', false),
   view3d: false, anim: null,                  // camera animation
   cam: { yaw:0, pitch:89.5, dist:600, tx:0, ty:0 },
   warp: 0, rings: [], sparks: null, replay: { on:false, f:1, playing:false },
@@ -277,7 +277,7 @@ function fitDist(){
   return Math.max((b.h/2*1.12)/t, (b.w/2*1.12)/(t*a));
 }
 function topDown(){ const b=A.bed(); return { yaw:0, pitch:89.5, dist:fitDist(), tx:b.x0+b.w/2, ty:b.y0+b.h/2 }; }
-function tilted(){ const td=topDown(); return { ...td, yaw:-24, pitch:50, dist:td.dist*1.02, ty:td.ty-td.dist*0.03 }; }
+function tilted(){ const td=topDown(); return { ...td, yaw:0, pitch:58, dist:td.dist*1.22, ty:td.ty-td.dist*0.04 }; }   // straight-on tilt that keeps the whole bed in view
 function animateCam(to, ms, done){ S.anim={ from:{...S.cam}, to, t0:performance.now(), ms, done }; }
 function stepCam(now){
   const a=S.anim; if(!a) return false;
@@ -298,10 +298,10 @@ function set3D(on){
   if(on===S.view3d && !S.anim) return;
   if(on){
     S.view3d=true; document.body.classList.add('view3d'); S.cam={...topDown()};
-    animateCam(tilted(), reduced?1:900);
+    animateCam(tilted(), reduced?1:350);
     hint('Drag: orbit · right-drag: pan · scroll: zoom · double-click: reset · T: back to 2D');
   } else {
-    animateCam(topDown(), reduced?1:650, ()=>{ S.view3d=false; document.body.classList.remove('view3d'); hint(null); try{ dirty=true; }catch{} });
+    animateCam(topDown(), reduced?1:300, ()=>{ S.view3d=false; document.body.classList.remove('view3d'); hint(null); try{ dirty=true; }catch{} });
   }
   document.getElementById('view3dBtn').classList.toggle('on', on);
   S.need=true;
@@ -342,15 +342,8 @@ function bindControls(){
   const lv=document.getElementById('fxLevel'), au=document.getElementById('fx3dAuto'), so=document.getElementById('fxSound');
   lv.value=S.level; au.checked=S.auto3d; so.checked=S.sound;
   lv.onchange=()=>{ S.degradeWarned=false; setLevel(lv.value); };
-  au.onchange=()=>{ S.auto3d=au.checked; put('auto3d', S.auto3d); };
+  au.onchange=()=>{ S.auto3d=au.checked; put('auto3d2', S.auto3d); };
   so.onchange=()=>{ S.sound=so.checked; put('sound', S.sound); if(S.sound) Snd.blip(880,.06); };
-  // panels lean toward the mouse (Full only)
-  document.getElementById('inspector').addEventListener('mousemove', e=>{
-    if(S.level!=='full' || reduced) return; const d=e.target.closest && e.target.closest('details.sec'); if(!d) return;
-    const r=d.getBoundingClientRect(), x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
-    d.style.setProperty('--ry', (x*2.4).toFixed(2)+'deg'); d.style.setProperty('--rx', (-y*1.6).toFixed(2)+'deg');
-  });
-  document.getElementById('inspector').addEventListener('mouseout', e=>{ const d=e.target.closest && e.target.closest('details.sec'); if(d && !d.contains(e.relatedTarget)){ d.style.removeProperty('--rx'); d.style.removeProperty('--ry'); } });
   // soft UI blips (only if sounds are on)
   document.addEventListener('click', e=>{ if(S.sound && e.target.closest && e.target.closest('button')) Snd.blip(e.target.closest('#stopBtn')?220:1320, .025); }, true);
 }
@@ -579,8 +572,8 @@ function readouts(dt){
 
 // ---------------------------------------------------------------- level
 function setLevel(l, silent){
-  S.level=['full','lite','off'].includes(l)?l:'full';
-  if(!silent) put('level', S.level);
+  S.level=['full','lite','off'].includes(l)?l:'lite';
+  if(!silent) put('level2', S.level);
   document.body.classList.remove('fx-full','fx-lite','fx-off'); document.body.classList.add('fx-'+S.level);
   const sel_=document.getElementById('fxLevel'); if(sel_) sel_.value=S.level;
   if(S.level==='off'){ if(S.view3d){ S.anim=null; S.view3d=false; document.body.classList.remove('view3d'); hint(null); }

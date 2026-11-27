@@ -42,23 +42,33 @@ Open https://j-davella.github.io/burner/ and Connect: it uses the browser's Web 
 
 ## Screen
 
-STOP is always at the top right. The run bar along the bottom holds Frame / Start / Pause, the
-time left, progress and the live speed / power / rapid overrides. The left rail has the select and
-pan tools, zoom, add file and quick jumps; the right panel has tabs for the Job (files, objects,
-generate), the selected Object (position, cut/score/fill settings, raster), the Machine (home,
-jog, zero, frame) and the Console. Sections fold and remember it. Errors logged while the console
-is hidden put a dot on its tab. HUD and Classic themes in Settings.
+Two panels, no tabs. STOP is always at the top right.
+
+- **Left, Machine (run it):** Frame / Start / Pause, time left and progress, the job summary,
+  resume after a stop, Home / Unlock / Reset / Set zero / Go to zero, jog, the live speed / power /
+  rapid overrides, frame settings and the console (folded; a dot shows when it logged a warning).
+- **Middle:** the bed, with a small floating tool strip: select, pan, zoom, fit, snap, undo, redo, 3D.
+- **Right, CAM (program it):** **Material** first, then add files, shapes and text, the object
+  list, and the selected object's cut / score / fill and power settings. Image engraving, the
+  G-code file, Project and Job history are folded at the bottom. **P** hides this panel.
+
+**Material** sets cut / score / fill power and speed for every vector object at once, and new
+SVG, DXF, shapes and text start from it. Saving a tuned value in the Test Lab picks that material
+and updates the objects on the bed that were following it. Start generates the job itself;
+Generate and Save .nc are only for saving a file.
+
+Rarely used things live in Settings: machine profiles, camera, effects, theme. HUD and Classic
+themes in Settings.
 
 ## Effects (3D view)
 
-Press **T** (or the cube on the left rail) for a 3D view of the bed: a holographic grid with the
+Press **T** (or the cube on the tool strip) for a 3D view of the bed: a holographic grid with the
 machine frame, a wireframe gantry and laser head, the beam glowing with live power, sparks, and
 the toolpath burning in white-hot and cooling to charred as the job runs. Drag to orbit,
 right-drag to pan, scroll to zoom, double-click to reset. The bar under the view replays the job
-before you burn it (preview only, nothing is sent). Jobs switch to 3D when they start (turn that
-off in Settings). Around the 2D bed there's a slow nebula and starfield; connecting warps the
-stars, an alarm sweeps red across the map, a finished job sends out a shockwave, and the run bar
-shows reactor-style power and speed rings.
+before you burn it (preview only, nothing is sent). It only switches to 3D when you ask
+(Settings can make jobs switch on start). Effects default to **Simple**: no constant animation,
+no glow. **Fancy** in Settings adds glow, sparks and a moving starfield; **Off** is plain 2D.
 
 Settings > Effects: **Full** (all of it), **Lite** (3D without glow/sparks, still backdrop) or
 **Off** (plain 2D, no WebGL). If frames get slow, Full drops to Lite for that session. Sounds are
@@ -81,10 +91,10 @@ The port list always ends with **Simulator (no laser)**: a fake GRBL 1.1 inside 
 
 ## Machine robustness
 
-- **Machine profiles** (Machine tab): one per laser, with bed size and offsets, connection (mode, port, baud), air-assist command and a saved copy of the `$`-settings. Switch in one click while disconnected. On connect, Burner compares the controller's `$$` with the profile and warns about any difference; **Write saved** puts the profile's values back (two clicks).
+- **Machine profiles** (Settings): one per laser, with bed size and offsets, connection (mode, port, baud), air-assist command and a saved copy of the `$`-settings. Switch in one click while disconnected. On connect, Burner compares the controller's `$$` with the profile and warns about any difference; **Write saved** puts the profile's values back (two clicks).
 - **USB drops**: the laser is treated as stopped, Burner keeps reconnecting to the same port for 2 minutes, and **never restarts a job by itself**. On reconnect it sends feed hold + soft reset so nothing left in the controller keeps burning.
 - **Alarms and errors** come with plain-English text and the fix (all GRBL 1.1 codes). The alarm banner shows which limit switch is pressed; Home is hidden when homing is off (`$22=0`).
-- **Resume from a line** after STOP, an alarm, a reset or a drop: the Job tab suggests the move the head was on, marks it on the bed, and lists what to check (home first if position was lost, work zero moved, work piece). Resume rapids there with the laser off and restores units, distance mode, feed, laser mode, S and air before the line goes out. Checked by `tests/resume.test.mjs`: resuming at any line burns exactly what the original would have from there on.
+- **Resume from a line** after STOP, an alarm, a reset or a drop: the Machine panel suggests the move the head was on, marks it on the bed, and lists what to check (home first if position was lost, work zero moved, work piece). Resume rapids there with the laser off and restores units, distance mode, feed, laser mode, S and air before the line goes out. Checked by `tests/resume.test.mjs`: resuming at any line burns exactly what the original would have from there on.
 - **Air assist**: tick Air per operation (cut / score / fill) or per image. The machine profile says which output (M8, M7 or none). Jobs without air are byte-identical to before.
 
 There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow it) that skips the bridge's serial port. The page still has to be served over http, so run the bridge (or any local web server).
@@ -113,14 +123,14 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 ## Design tools
 
 - **Undo / redo** for everything on the bed (each action, drag or edit is one step).
-- **Create** (Job tab): rectangle, rounded rectangle, circle/ellipse, polygon, star. They stay editable in the Object tab (size, corner radius, points, inner radius).
+- **Create** (CAM panel): rectangle, rounded rectangle, circle/ellipse, polygon, star. They stay editable when selected (size, corner radius, points, inner radius).
 - **Text**: outline text in any font installed on your computer, or load your own TTF / OTF / WOFF (outlines are traced from the browser's own text rendering, ~0.03 mm). **Single-line text** is a built-in one-stroke-per-letter font for fast scoring. Text stays editable.
 - **Snapping** while dragging: to other objects' edges and centers, the bed edges/center, work zero and a 1/8 in grid. Pink guides show what it snapped to.
 - **Arrange**: align / space the checked objects, align the selected one to the bed, grid and circular arrays, and **Nest on bed** (packs the checked objects by bounding box, turning parts to lie flat when that fits).
 
 ## Projects & history
 
-- **Project** (Job tab): New, Open, Save (Ctrl+S), Save as. A `.burner` file is JSON holding the layout, every object's operations and settings, and the images themselves, so it opens anywhere. Opening a saved project generates byte-identical G-code.
+- **Project** (CAM panel, folded): New, Open, Save (Ctrl+S), Save as. A `.burner` file is JSON holding the layout, every object's operations and settings, and the images themselves, so it opens anywhere. Opening a saved project generates byte-identical G-code.
 - **Autosave**: the layout is saved in the browser a moment after every change. If the browser, PC or bridge dies, the next launch offers to restore the last session.
 - **Recent**: the last 12 saved/opened projects, one click to reopen.
 - **Job history** per machine: every run (done, stopped, or interrupted, with how far it got), with a thumbnail, time and result. **Load** puts that exact G-code back (press Start to burn it); **Layout** puts the layout back on the bed.
@@ -129,7 +139,7 @@ Projects, autosave and history live in the browser's storage for the page's addr
 
 ## Camera
 
-Machine tab → Camera. Any USB camera the browser can see (open Burner from `http://localhost:8765`; Chrome or Firefox will ask to allow the camera).
+Settings → Camera. Any USB camera the browser can see (open Burner from `http://localhost:8765`; Chrome or Firefox will ask to allow the camera).
 
 1. Cover the bed with scrap and press **Burn 4 marks**: four small numbered crosshairs, 12% in from the bed corners (1 bottom-left, 2 bottom-right, 3 top-right, 4 top-left; the number is the count of ticks).
 2. **Click the marks** in the camera snapshot, in that order. A loupe magnifies the spot under the cursor; Burner refuses points that aren't in order around the bed.
@@ -141,7 +151,7 @@ The calibration is saved in the machine profile; redo it if the camera moves. On
 
 Esc stop · Space pause/resume · `[` `]` speed -/+10% · `-` `=` power -/+10% · arrows jog (or nudge the selected object; Shift = 0.1 in) · Del deletes selected · F fits view
 
-V select tool · H pan tool · T 3D view · P show/hide the side panel · 1-4 panel tabs (Job, Object, Machine, Console) · M machine · ` console · Ctrl+O add a file
+V select tool · H pan tool · T 3D view · P show/hide the CAM panel · ` console · Ctrl+O add a file
 
 Ctrl+S save project · Ctrl+Shift+S save as · Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+D duplicate · R add a rectangle · X add text · G snapping on/off (hold Alt while dragging to place freely)
 

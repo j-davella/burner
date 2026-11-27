@@ -158,6 +158,7 @@ function syncMatPresets(name){
     upsertQuiet('raster', name+' '+lbl, {rLpi:r.lpi, rFeedS:r.feed, rPmin:r.pmin, rPmax:r.pmax, rOver:0.05, rThresh:3, rDither:dith, rInvert:false, rBidir:true});
   }
   savePresets();
+  if(typeof Material!=='undefined') Material.afterTune(name);
 }
 function upsertQuiet(type,name,v){ const i=presets.findIndex(p=>p.type===type&&p.name===name); if(i>=0) presets[i].v=v; else presets.push({type,name,v}); }
 

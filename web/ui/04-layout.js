@@ -14,7 +14,7 @@ function addObj(o){
   o.rot=0; o.x=oW(o)/2+off; o.y=oH(o)/2+off;
   objs.push(o); sel=o; cropMode=false; layoutChanged();
 }
-function defaultOps(){ return { cut:{power:100,feed:5,passes:2}, score:{power:30,feed:20,passes:1}, fill:{power:40,feed:60,passes:1,interval:0.1} }; }
+function defaultOps(){ const m=(typeof Material!=='undefined') && Material.ops(); if(m) return m; return { cut:{power:100,feed:5,passes:2}, score:{power:30,feed:20,passes:1}, fill:{power:40,feed:60,passes:1,interval:0.1} }; }
 const OPS=['cut','score','fill'];
 function deleteSel(){ if(!sel) return; objs.splice(objs.indexOf(sel),1); sel=null; cropMode=false; layoutChanged(); }
 
@@ -139,7 +139,7 @@ function renderObjList(){
 }
 function syncProps(){
   renderObjList();
-  $('rasterHdr').textContent = sel&&sel.type==='img' ? 'Raster: this image' : 'Raster: new image defaults';
+  $('rasterHdr').textContent = sel&&sel.type==='img' ? 'Image engraving: this image' : 'Image engraving: new images';
   if(sel&&sel.type==='img'&&sel.r){ writeRaster(sel.r); fillPresetSel('rPreset','raster',sel.rPreset||''); }
   $('objNone').style.display = sel?'none':''; $('objBox').style.display = sel?'':'none';
   if(!sel) return;

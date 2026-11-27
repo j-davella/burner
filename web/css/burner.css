@@ -1,7 +1,7 @@
 /* =====================================================================
    Burner styles. Tokens first; the HUD theme (default) overrides tokens
    and adds its own decoration on top of the classic base.
-   Layout: top bar / [rail | map | inspector] / run bar.
+   Layout: top bar / [machine panel | map (floating tool rail) | CAM panel].
    ===================================================================== */
 :root{
   /* color */
@@ -15,13 +15,13 @@
   --r:8px; --r2:6px; --mono:ui-monospace,"JetBrains Mono","Cascadia Mono","Fira Code",Consolas,monospace;
   --ui:Inter,"Segoe UI",system-ui,-apple-system,"Noto Sans",sans-serif;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
-  --top:52px; --rail:52px; --insp:372px;
+  --top:52px; --mach:300px; --insp:340px;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#141a22 0%,var(--bg) 60%);color:var(--tx);
-  font:14px/1.45 var(--ui);display:grid;grid-template-rows:var(--top) minmax(0,1fr) auto;overflow:hidden;
+  font:14px/1.45 var(--ui);display:grid;grid-template-rows:var(--top) minmax(0,1fr);overflow:hidden;
   -webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--ln2);border-radius:9px;border:2px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-track{background:transparent}
@@ -443,3 +443,69 @@ label.inl input{width:58px;padding:4px 6px}
 #camLoupe{position:absolute;top:10px;right:10px;width:180px;height:180px;border:2px solid var(--acc);border-radius:50%;display:none;pointer-events:none;box-shadow:0 0 20px rgba(0,0,0,.8)}
 #camInfo{margin:var(--s2) 0;font-size:12px}#camInfo .ok{color:var(--ok)}#camInfo .warn{color:var(--warn)}
 #camOpacity{width:100%}
+
+/* ---------- simple two-panel layout: Machine left, CAM right ---------- */
+#shell{grid-template-columns:var(--mach) minmax(0,1fr) var(--insp)}
+body.nopanel #shell{grid-template-columns:var(--mach) minmax(0,1fr) 0}
+.side{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:rgba(10,13,17,.72)}
+#machPanel{border-right:1px solid var(--ln)}
+#inspector{border-left:1px solid var(--ln)}
+body.hud .side{background:rgba(1,8,14,.6)}
+.sideh{flex:none;display:flex;align-items:center;gap:8px;height:40px;padding:0 var(--s3);border-bottom:1px solid var(--ln);
+  font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--tx2)}
+.sideh .ic{width:16px;height:16px;color:var(--acc)}
+.sideh button.icon{min-height:28px;width:30px;padding:0;background:transparent;border-color:transparent}
+.sideb{flex:1;min-height:0;overflow:auto;padding:var(--s3) var(--s3) var(--s5);display:flex;flex-direction:column;gap:var(--s3)}
+.sideb>details.sec{margin-bottom:0}
+.sideb .hint{margin:0}
+#panelShow{display:none;position:fixed;right:10px;top:calc(var(--top) + 8px);z-index:5;width:36px;height:36px;min-height:0;padding:0}
+body.nopanel #panelShow{display:inline-flex;align-items:center;justify-content:center}
+/* run controls on top of the machine panel */
+#machPanel .runbtns{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:var(--s2)}
+#machPanel .runbtns button{min-height:44px;padding:0 8px}
+#machPanel .runbtns #startBtn{min-width:0}
+.runstat{display:flex;flex-direction:column;gap:6px}
+.runstat .timer{flex-direction:row;align-items:baseline;gap:10px;min-width:0}
+.runstat .timer b{font-size:22px}
+.runstat .timer span{margin:0}
+#jobInfo{margin:0}
+#machPanel .bgrid button{min-height:36px;padding:0 6px;font-size:12.5px}
+#machPanel .jogwrap{grid-template-columns:auto minmax(0,1fr);gap:var(--s3)}
+#machPanel .jog{grid-template-columns:repeat(3,42px)}
+#machPanel .jog button{height:40px}
+#machPanel .ovs{grid-template-columns:auto;gap:4px}
+#machPanel .ov b{width:44px}
+#consoleSec[open]{display:flex;flex-direction:column;gap:var(--s2)}
+#consoleSec #console{min-height:200px;max-height:45vh}
+#consoleSec summary .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px var(--warn)}
+/* tool rail floats over the bed */
+#rail{position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:3;flex-direction:column;gap:2px;padding:4px;
+  border:1px solid var(--ln);border-radius:var(--r);background:rgba(7,10,14,.82);max-height:calc(100% - 20px);overflow-y:auto}
+#rail button{width:34px;height:34px}
+#mapHint{left:56px}
+/* CAM panel */
+.matrow{display:flex;align-items:center;gap:var(--s2)}
+.matrow label{font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim)}
+.matrow select{font-weight:600}
+#matInfo{font-family:var(--mono);font-size:11px}
+.sideb .row,.sideb .row2{margin:0}
+.sideb .row.mk{flex-wrap:wrap}
+.sideb .row.mk button{flex:1 1 auto;min-height:30px;padding:0 8px;font-size:12px}
+#rasterBox{display:flex;flex-direction:column;gap:var(--s2)}
+#rasterBox .arr-h{margin:0}
+#objBox{display:flex;flex-direction:column;gap:var(--s2)}
+#objBox[style*="none"]{display:none!important}
+#objBox .objname{margin:0}
+#objBox details.sec{margin:0}
+#vecProps{display:flex;flex-direction:column;gap:var(--s2)}
+#vecProps[style*="none"]{display:none!important}
+#vecProps .row{margin:0}
+@media (max-width:1400px){ :root{--mach:270px;--insp:310px} }
+@media (max-width:1180px){ :root{--mach:250px;--insp:290px} #machPanel .bgrid{grid-template-columns:1fr 1fr} }
+@media (max-width:980px){ :root{--mach:230px;--insp:270px} }
+.sideb .card{margin:0}
+#machPanel .ov{gap:2px}
+#machPanel .ov button{padding:0 4px;min-width:0;flex:1}
+#machPanel .ov .pos{width:36px}
+.sideb>*{flex:none}
+.runstat .progwrap{flex:none}

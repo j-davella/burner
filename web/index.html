@@ -58,7 +58,6 @@
     <symbol id="i-obj" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 2"/><path d="M8 16l4-8 4 8z"/></symbol>
   </defs>
 </svg>
-<div id="boot"></div>
 
 <header id="topbar">
   <div class="tl">
@@ -89,30 +88,95 @@
 </header>
 
 <main id="shell">
-  <nav id="rail" aria-label="Tools">
-    <button class="tool on" data-tool="select" title="Select / move (V)" aria-label="Select tool"><svg class="ic"><use href="#i-select"/></svg></button>
-    <button class="tool" data-tool="pan" title="Pan (H). Middle mouse always pans." aria-label="Pan tool"><svg class="ic"><use href="#i-pan"/></svg></button>
-    <span class="rsep"></span>
-    <button id="zoomInBtn" title="Zoom in (or scroll)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
-    <button id="zoomOutBtn" title="Zoom out (or scroll)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
-    <button id="fitBtn" title="Fit bed (F)" aria-label="Fit view"><svg class="ic"><use href="#i-fit"/></svg></button>
-    <button id="view3dBtn" title="3D view (T)" aria-label="Toggle 3D view"><svg class="ic"><use href="#i-cube"/></svg></button>
-    <span class="rsep"></span>
-    <button id="railAdd" title="Add image / DXF / SVG (Ctrl+O)" aria-label="Add file"><svg class="ic"><use href="#i-add"/></svg></button>
-    <button id="railShape" title="Add a rectangle (R)" aria-label="Add shape"><svg class="ic"><use href="#i-shape"/></svg></button>
-    <button id="railText" title="Add text (X)" aria-label="Add text"><svg class="ic"><use href="#i-text"/></svg></button>
-    <button id="snapBtn" class="on" title="Snap to grid, bed and other objects while dragging (G). Hold Alt to drag freely." aria-label="Toggle snapping"><svg class="ic"><use href="#i-magnet"/></svg></button>
-    <span class="rsep"></span>
-    <button id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
-    <button id="redoBtn" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" aria-label="Redo"><svg class="ic"><use href="#i-redo"/></svg></button>
-    <button data-tab-go="machine" title="Machine: home, jog, zero (M)" aria-label="Machine panel"><svg class="ic"><use href="#i-machine"/></svg></button>
-    <button data-tab-go="console" title="Console (`)" aria-label="Console panel"><svg class="ic"><use href="#i-term"/></svg></button>
-    <span class="grow"></span>
-    <button id="panelBtn" title="Show / hide the side panel (P)" aria-label="Toggle side panel"><svg class="ic"><use href="#i-panel"/></svg></button>
-  </nav>
+  <!-- ===================== LEFT: RUN THE MACHINE ===================== -->
+  <aside id="machPanel" class="side" aria-label="Machine">
+    <div class="sideh"><svg class="ic"><use href="#i-machine"/></svg>Machine</div>
+    <div class="sideb">
+      <div class="runbtns">
+        <button id="frameBtn" title="Trace the job outline"><svg class="ic"><use href="#i-frame"/></svg>Frame</button>
+        <button id="startBtn" class="pri"><svg class="ic"><use href="#i-play"/></svg>Start</button>
+        <button id="pauseBtn" class="warnb"><svg class="ic"><use href="#i-pause"/></svg><span>Pause</span></button>
+      </div>
+      <div class="runstat">
+        <div class="timer"><b id="tLeft">--:--</b><span id="tSub">no job</span></div>
+        <div class="progwrap"><progress id="prog" value="0" max="1"></progress><div id="progTxt">-</div></div>
+      </div>
+      <div id="jobInfo" class="card muted">No job loaded.</div>
+      <div id="resumeBox" class="card resume" hidden>
+        <div class="rh"><b>Job stopped</b><span id="resWhy"></span></div>
+        <div id="resWhere" class="muted"></div>
+        <div class="fgrid one"><label for="resLine">Resume from line</label><input id="resLine" type="number" min="1" step="1"></div>
+        <div class="row"><button id="resNearest" title="The move the head was on when it stopped">Where it stopped</button><button id="resBack" title="Start a little earlier (overlap instead of a gap)">Back a bit</button></div>
+        <ul id="resWarn"></ul>
+        <label class="chk"><input id="resAck" type="checkbox"> I checked the work and the warnings above</label>
+        <div class="row"><button id="resGo" class="pri"><svg class="ic"><use href="#i-play"/></svg><span>Resume</span></button><button id="resDiscard">Discard</button></div>
+      </div>
+
+      <div class="bgrid">
+        <button id="homeBtn"><svg class="ic"><use href="#i-home"/></svg>Home</button>
+        <button id="unlockBtn"><svg class="ic"><use href="#i-unlock"/></svg>Unlock</button>
+        <button id="resetBtn" title="Soft reset (Ctrl-X)"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+        <button id="zeroBtn" title="G10 L20 P1 X0 Y0: current spot becomes work 0,0"><svg class="ic"><use href="#i-zero"/></svg>Set zero</button>
+        <button id="goZeroBtn"><svg class="ic"><use href="#i-zero"/></svg>Go to zero</button>
+      </div>
+
+      <div class="jogwrap">
+        <div class="jog">
+          <button data-j="-1,1" aria-label="Jog up-left">&#8598;</button><button data-j="0,1" aria-label="Jog up">&#9650;</button><button data-j="1,1" aria-label="Jog up-right">&#8599;</button>
+          <button data-j="-1,0" aria-label="Jog left">&#9664;</button><button id="jogCancel" title="Cancel jog" aria-label="Cancel jog">&#9632;</button><button data-j="1,0" aria-label="Jog right">&#9654;</button>
+          <button data-j="-1,-1" aria-label="Jog down-left">&#8601;</button><button data-j="0,-1" aria-label="Jog down">&#9660;</button><button data-j="1,-1" aria-label="Jog down-right">&#8600;</button>
+        </div>
+        <div class="fgrid one">
+          <label for="jogStep">Step <small>in</small></label>
+          <select id="jogStep"><option>0.01</option><option>0.05</option><option selected>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select>
+          <label for="jogFeedS">Feed <small>mm/s</small></label><input id="jogFeedS" type="number" value="40" step="5">
+        </div>
+      </div>
+      <p class="hint">Arrow keys jog. Double-click the bed to rapid there (laser off).</p>
+
+      <details class="sec" data-sec="ovs" open>
+        <summary>While running</summary>
+        <div class="ovs" title="Keys: [ ] speed, - = power, Space pause">
+          <div class="ov"><b>Speed</b><span id="ovF" class="pos">-</span>
+            <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144" title="Back to 100%">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
+          <div class="ov"><b>Power</b><span id="ovS" class="pos">-</span>
+            <button data-pw="-10">-10</button><button data-pw="-1">-1</button><button data-pw="job" title="Back to what the job set">Job</button><button data-pw="1">+1</button><button data-pw="10">+10</button></div>
+          <div class="ov ov3"><b>Rapid</b><span id="ovR" class="pos">-</span>
+            <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
+          <div id="pwInfo" title="Power is actual % of the laser's max ($30), capped at 100. A tweak lasts until the next operation.">-</div>
+        </div>
+      </details>
+
+      <details class="sec" data-sec="frame">
+        <summary>Frame settings</summary>
+        <div class="fgrid one">
+          <label for="frameFeedS">Feed <small>mm/s</small></label><input id="frameFeedS" type="number" value="60" step="5">
+          <label class="chk"><input id="frameLaser" type="checkbox"> Low-power laser, S</label><input id="frameS" type="number" value="10" step="1" title="S value while framing">
+        </div>
+        <p class="hint">Keep frame S too low to mark the work. Goggles on.</p>
+      </details>
+
+      <details class="sec" data-sec="console" id="consoleSec">
+        <summary>Console</summary>
+        <div id="console"></div>
+        <input id="cmd" placeholder="Send command (Enter). Up/Down = history" autocomplete="off" aria-label="Send G-code command">
+      </details>
+    </div>
+  </aside>
 
   <section id="mapWrap" aria-label="Bed">
     <canvas id="map"></canvas>
+    <nav id="rail" aria-label="Tools">
+      <button class="tool on" data-tool="select" title="Select / move (V)" aria-label="Select tool"><svg class="ic"><use href="#i-select"/></svg></button>
+      <button class="tool" data-tool="pan" title="Pan (H). Middle mouse always pans." aria-label="Pan tool"><svg class="ic"><use href="#i-pan"/></svg></button>
+      <button id="zoomInBtn" title="Zoom in (or scroll)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
+      <button id="zoomOutBtn" title="Zoom out (or scroll)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
+      <button id="fitBtn" title="Fit bed (F)" aria-label="Fit view"><svg class="ic"><use href="#i-fit"/></svg></button>
+      <button id="snapBtn" class="on" title="Snap to grid, bed and other objects while dragging (G). Hold Alt to drag freely." aria-label="Toggle snapping"><svg class="ic"><use href="#i-magnet"/></svg></button>
+      <button id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button id="redoBtn" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" aria-label="Redo"><svg class="ic"><use href="#i-redo"/></svg></button>
+      <button id="view3dBtn" title="3D view (T)" aria-label="Toggle 3D view"><svg class="ic"><use href="#i-cube"/></svg></button>
+    </nav>
     <div id="hudStrip"></div>
     <div id="alarmBar" role="alert"><b>ALARM</b><span>Commands are locked.</span><button id="alarmUnlock">Unlock ($X)</button><button id="alarmHome">Home ($H)</button></div>
     <div id="dropBar" role="alert"><span></span><button id="dropAct"></button><button id="dropX" class="icon" aria-label="Dismiss">&#10005;</button></div>
@@ -124,77 +188,53 @@
     <div id="busy" role="status" aria-live="polite"><div class="busy-t">Working</div><div class="busy-bar"><i></i></div><div class="busy-row"><span class="busy-p">0%</span><button id="busyCancel" class="icon">Cancel</button></div></div>
   </section>
 
-  <aside id="inspector" aria-label="Inspector">
-    <div class="tabs" role="tablist">
-      <button role="tab" data-tab="job" class="on"><svg class="ic"><use href="#i-layers"/></svg>Job</button>
-      <button role="tab" data-tab="object"><svg class="ic"><use href="#i-obj"/></svg>Object</button>
-      <button role="tab" data-tab="machine"><svg class="ic"><use href="#i-machine"/></svg>Machine</button>
-      <button role="tab" data-tab="console"><svg class="ic"><use href="#i-term"/></svg>Console</button>
-    </div>
+  <!-- ===================== RIGHT: CAM (program the job) ===================== -->
+  <aside id="inspector" class="side" aria-label="CAM">
+    <div class="sideh"><svg class="ic"><use href="#i-layers"/></svg>CAM<span class="grow"></span><button id="panelBtn" class="icon" title="Hide this panel (P)" aria-label="Toggle CAM panel"><svg class="ic"><use href="#i-panel"/></svg></button></div>
+    <div class="sideb">
+      <div class="matrow">
+        <label for="matSel">Material</label>
+        <select id="matSel" class="grow" title="Cut / score / fill settings for every vector object. Tune them in the Test Lab."></select>
+      </div>
+      <div id="matInfo" class="hint"></div>
 
-    <!-- ===================== JOB ===================== -->
-    <div class="pane on" data-pane="job" role="tabpanel">
       <div class="row2">
         <button id="loadImgBtn" class="pri wide"><svg class="ic"><use href="#i-add"/></svg>Add image / DXF / SVG</button>
         <button id="loadGcBtn" title="Load a G-code file as-is"><svg class="ic"><use href="#i-file"/></svg>G-code</button>
       </div>
       <input id="gcFile" type="file" accept=".nc,.gcode,.gc,.ngc,.tap,.txt" hidden>
       <input id="imgFile" type="file" accept="image/*,.svg,.dxf" multiple hidden>
-      <details class="sec" data-sec="project" open>
-        <summary>Project</summary>
-        <div class="row"><input id="projName" class="grow" placeholder="Untitled" aria-label="Project name"><span id="projDirty"></span></div>
-        <div class="row tight"><button id="projNew">New</button><button id="projOpen">Open...</button><button id="projSave" title="Ctrl+S">Save</button><button id="projSaveAs" title="Ctrl+Shift+S">Save as...</button></div>
-        <input id="projFile" type="file" accept=".burner,.json" hidden>
-        <div id="recentList"></div>
-      </details>
-      <div id="jobInfo" class="card muted">No job loaded.</div>
-      <div id="resumeBox" class="card resume" hidden>
-        <div class="rh"><b>Job stopped</b><span id="resWhy"></span></div>
-        <div id="resWhere" class="muted"></div>
-        <div class="fgrid one"><label for="resLine">Resume from line</label><input id="resLine" type="number" min="1" step="1"></div>
-        <div class="row"><button id="resNearest" title="The move the head was on when it stopped">Where it stopped</button><button id="resBack" title="Start a little earlier (overlap instead of a gap)">Back a bit</button></div>
-        <ul id="resWarn"></ul>
-        <label class="chk"><input id="resAck" type="checkbox"> I checked the work and the warnings above</label>
-        <div class="row"><button id="resGo" class="pri"><svg class="ic"><use href="#i-play"/></svg><span>Resume</span></button><button id="resDiscard">Discard</button></div>
-      </div>
-      <div id="rasterBox">
-        <details class="sec" data-sec="create" open>
-          <summary>Create</summary>
-          <div class="row mk"><button data-mk="rect">Rectangle</button><button data-mk="rounded">Rounded</button><button data-mk="ellipse">Circle</button><button data-mk="polygon">Polygon</button><button data-mk="star">Star</button></div>
-          <div class="row mk"><button data-mk="text" title="Outline text in any installed font (fill or cut)">Text</button><button data-mk="stext" title="Single-line text: one stroke per letter, for scoring">Single-line text</button></div>
-        </details>
-        <details class="sec" data-sec="objects" open>
-          <summary>Objects</summary>
-          <div id="objList" class="muted">Nothing on the bed yet.</div>
-          <div class="row"><button id="onlySelBtn" title="Turn every other object off">Burn only selected</button><button id="allOnBtn">All on</button></div>
-          <p class="hint">Only checked objects burn and frame. Order: images, fills, scores, then cuts.</p>
-          <div class="arr-h">Arrange checked objects</div>
-          <div class="row tight"><button data-al="l" title="Align left edges">Left</button><button data-al="cx" title="Align centers left-right">Center</button><button data-al="r" title="Align right edges">Right</button><button data-al="t" title="Align top edges">Top</button><button data-al="cy" title="Align middles">Middle</button><button data-al="b" title="Align bottom edges">Bottom</button></div>
-          <div class="row tight"><button data-dist="x" title="Equal gaps left to right">Space across</button><button data-dist="y" title="Equal gaps bottom to top">Space up</button><button id="nestBtn" title="Pack them on the bed by bounding box, turning parts to lie flat when that fits">Nest on bed</button><label class="inl">gap <input id="nestGap" type="number" value="0.1" step="0.05" min="0"> in</label></div>
-        </details>
-        <details class="sec" data-sec="history">
-          <summary>Job history <small id="histMachine"></small></summary>
-          <div id="histList"></div>
-        </details>
-        <details class="sec" data-sec="output" open>
-          <summary>Output</summary>
-          <div class="row"><button id="genBtn" class="pri">Generate</button><button id="saveGcBtn">Save .nc</button></div>
-          <img id="thumb" alt="Raster preview">
-          <p class="hint">Positions are work coords (W0 = blue corner). M4 dynamic power, % of $30.</p>
-        </details>
-      </div>
-    </div>
+      <div class="row mk"><button data-mk="rect">Rect</button><button data-mk="rounded">Rounded</button><button data-mk="ellipse">Circle</button><button data-mk="polygon">Polygon</button><button data-mk="star">Star</button></div>
+      <div class="row mk"><button data-mk="text" title="Outline text in any installed font (fill or cut)">Text</button><button data-mk="stext" title="Single-line text: one stroke per letter, for scoring">Single-line text</button></div>
 
-    <!-- ===================== OBJECT ===================== -->
-    <div class="pane" data-pane="object" role="tabpanel">
-      <div id="objNone" class="empty">
-        <svg class="ic big"><use href="#i-obj"/></svg>
-        <p>Click an object on the bed to edit it.</p>
-        <p class="hint">Drag to move &middot; corners scale (Shift flips aspect lock) &middot; top dot rotates (Shift snaps 15&deg;) &middot; Del deletes &middot; arrows nudge 0.01 in (Shift 0.1).</p>
+      <div id="rasterBox">
+        <div class="arr-h">Objects</div>
+        <div id="objList" class="muted">Nothing on the bed yet.</div>
+        <div class="row tight"><button id="onlySelBtn" title="Turn every other object off">Burn only selected</button><button id="allOnBtn">All on</button></div>
       </div>
+
+      <div id="objNone" class="hint">Click an object on the bed to edit it. Drag to move, corners scale, top dot rotates, Del deletes, arrows nudge.</div>
       <div id="objBox" style="display:none">
         <div id="objName" class="objname"></div>
-        <details class="sec" data-sec="place" open>
+        <div id="vecProps" style="display:none">
+          <div class="row opbtns"><button data-op="cut">Cut</button><button data-op="score">Score</button><button data-op="fill">Fill</button><button data-op="off">Off</button></div>
+          <div id="pathInfo" class="muted"></div>
+          <div class="row seg"><button id="pathOuter" title="Contours not inside any other contour">Outer</button><button id="pathInner" title="Contours inside another contour">Inner</button><button id="pathAll">All</button><button id="pathNone">None</button></div>
+          <p class="hint">Click a contour to pick it, Shift-click to add. Buttons apply to picked contours, or all if none are picked.</p>
+          <details class="sec" data-sec="ops">
+            <summary>Power &amp; speed <small id="opsFrom"></small></summary>
+            <div class="row"><select id="vPreset" class="grow"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
+            <div class="opgrid">
+              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span><span class="h" title="Air assist">Air</span>
+              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1"><input id="op_cut_air" type="checkbox" title="Air assist on while cutting">
+              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1"><input id="op_score_air" type="checkbox" title="Air assist on while scoring">
+              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1"><input id="op_fill_air" type="checkbox" title="Air assist on while filling">
+            </div>
+            <div class="fgrid one"><label for="op_fill_interval">Fill line interval <small>mm</small></label><input id="op_fill_interval" type="number" step="0.01"></div>
+            <div class="row"><input id="vPresetName" class="grow" placeholder="Save as preset, e.g. 1/8 birch ply"><button id="vSaveAs">Save</button></div>
+          </details>
+        </div>
+        <details class="sec" data-sec="place">
           <summary>Position &amp; size</summary>
           <div class="fgrid">
             <label for="oX">X <small>in</small></label><input id="oX" type="number" step="0.01">
@@ -227,41 +267,23 @@
           </div>
           <div class="row chks"><label class="chk"><input id="txBold" type="checkbox"> Bold</label><label class="chk"><input id="txItal" type="checkbox"> Italic</label><button id="txLoad" title="Use a TTF / OTF / WOFF font file">Load font file</button></div>
           <input id="txFile" type="file" accept=".ttf,.otf,.woff,.woff2" hidden>
-          <p class="hint">Size is the font size (single-line: capital height). Single-line letters are one stroke each, for scoring.</p>
         </details>
-        <details class="sec" data-sec="arrange" open>
-          <summary>Arrange</summary>
+        <details class="sec" data-sec="arrange">
+          <summary>Arrange &amp; copies</summary>
           <div class="arr-h">On the bed</div>
           <div class="row tight"><button data-bed="l">Left</button><button data-bed="cx">Center</button><button data-bed="r">Right</button><button data-bed="t">Top</button><button data-bed="cy">Middle</button><button data-bed="b">Bottom</button></div>
           <div class="arr-h">Grid array</div>
           <div class="row tight"><label class="inl"><input id="arCols" type="number" value="3" min="1" step="1"> across</label><label class="inl"><input id="arRows" type="number" value="2" min="1" step="1"> up</label><label class="inl">gap <input id="arGap" type="number" value="0.125" step="0.05" min="0"> in</label><button id="arGrid">Make</button></div>
           <div class="arr-h">Circular array</div>
           <div class="row tight"><label class="inl"><input id="arN" type="number" value="6" min="2" step="1"> copies</label><label class="inl">radius <input id="arRad" type="number" value="2" step="0.25" min="0.05"> in</label><label class="chk"><input id="arRot" type="checkbox" checked> turn</label><button id="arCirc">Make</button></div>
+          <div class="arr-h">All checked objects</div>
+          <div class="row tight"><button data-al="l" title="Align left edges">Left</button><button data-al="cx" title="Align centers left-right">Center</button><button data-al="r" title="Align right edges">Right</button><button data-al="t" title="Align top edges">Top</button><button data-al="cy" title="Align middles">Middle</button><button data-al="b" title="Align bottom edges">Bottom</button></div>
+          <div class="row tight"><button data-dist="x" title="Equal gaps left to right">Space across</button><button data-dist="y" title="Equal gaps bottom to top">Space up</button><button id="nestBtn" title="Pack them on the bed by bounding box, turning parts to lie flat when that fits">Nest</button><label class="inl">gap <input id="nestGap" type="number" value="0.1" step="0.05" min="0"> in</label></div>
         </details>
-        <div id="vecProps" style="display:none">
-          <details class="sec" data-sec="ops" open>
-            <summary>Operations</summary>
-            <div id="pathInfo" class="muted"></div>
-            <div class="row opbtns"><button data-op="cut">Cut</button><button data-op="score">Score</button><button data-op="fill">Fill</button><button data-op="off">Off</button></div>
-            <div class="row seg"><button id="pathOuter" title="Contours not inside any other contour">Outer</button><button id="pathInner" title="Contours inside another contour">Inner</button><button id="pathAll">All</button><button id="pathNone">None</button></div>
-            <p class="hint">Click a contour on the bed to pick it, Shift-click to add. Buttons apply to picked contours, or all if none are picked.</p>
-            <div class="opgrid">
-              <span></span><span class="h">Power %</span><span class="h">mm/s</span><span class="h">Passes</span><span class="h" title="Air assist">Air</span>
-              <b class="cut">Cut</b><input id="op_cut_power" type="number" step="1"><input id="op_cut_feed" type="number" step="0.5"><input id="op_cut_passes" type="number" step="1" min="1"><input id="op_cut_air" type="checkbox" title="Air assist on while cutting">
-              <b class="score">Score</b><input id="op_score_power" type="number" step="1"><input id="op_score_feed" type="number" step="0.5"><input id="op_score_passes" type="number" step="1" min="1"><input id="op_score_air" type="checkbox" title="Air assist on while scoring">
-              <b class="fill">Fill</b><input id="op_fill_power" type="number" step="1"><input id="op_fill_feed" type="number" step="1"><input id="op_fill_passes" type="number" step="1" min="1"><input id="op_fill_air" type="checkbox" title="Air assist on while filling">
-            </div>
-            <div class="fgrid one"><label for="op_fill_interval">Fill line interval <small>mm</small></label><input id="op_fill_interval" type="number" step="0.01"></div>
-          </details>
-          <details class="sec" data-sec="vpreset">
-            <summary>Vector preset</summary>
-            <div class="row"><select id="vPreset" class="grow"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
-            <div class="row"><input id="vPresetName" class="grow" placeholder="Name, e.g. 1/8 birch ply"><button id="vSaveAs">Save as</button></div>
-          </details>
-        </div>
       </div>
-      <details class="sec" data-sec="raster" open>
-        <summary id="rasterHdr">Raster: new image defaults</summary>
+
+      <details class="sec" data-sec="raster">
+        <summary id="rasterHdr">Image engraving</summary>
         <div class="row"><select id="rPreset" class="grow"></select><button id="rPresetDel" class="icon" title="Delete this preset">Del</button></div>
         <div class="fgrid">
           <label for="rLpi">Lines / in</label><input id="rLpi" type="number" step="1" value="254">
@@ -277,107 +299,32 @@
           <label class="chk"><input id="rBidir" type="checkbox" checked> Bidirectional</label>
           <label class="chk" title="Air assist on while engraving this image"><input id="rAir" type="checkbox"> Air</label>
         </div>
-        <div class="row"><input id="rPresetName" class="grow" placeholder="Name, e.g. Poplar dithered photo"><button id="rSaveAs">Save as</button></div>
+        <div class="row"><input id="rPresetName" class="grow" placeholder="Save as preset, e.g. Poplar dithered photo"><button id="rSaveAs">Save</button></div>
       </details>
-    </div>
 
-    <!-- ===================== MACHINE ===================== -->
-    <div class="pane" data-pane="machine" role="tabpanel">
-      <details class="sec" data-sec="profile" open>
-        <summary>Machine profile</summary>
-        <div class="row"><select id="machSel" class="grow" aria-label="Machine profile"></select><button id="machNew">New</button><button id="machDel" class="danger">Delete</button></div>
-        <div class="fgrid one">
-          <label for="machName">Name</label><input id="machName">
-          <label for="machAir">Air assist</label><select id="machAir"><option value="M8">M8 (flood output)</option><option value="M7">M7 (mist output)</option><option value="">None</option></select>
-        </div>
-        <div id="machInfo" class="muted"></div>
-        <div class="row"><button id="machCapture" title="Store the controller's current $-settings in this profile">Save from controller</button><button id="machApply" class="warnb" title="Write the profile's saved $-settings that differ">Write saved</button></div>
-        <label class="chk"><input id="autoReconnect" type="checkbox" checked> Reconnect if the USB drops (never restarts a job)</label>
-        <p class="hint">Bed size and offsets are in Settings; the profile keeps them, plus port and baud.</p>
+      <details class="sec" data-sec="output">
+        <summary>G-code file</summary>
+        <div class="row"><button id="genBtn">Generate</button><button id="saveGcBtn">Save .nc</button></div>
+        <img id="thumb" alt="Raster preview">
+        <p class="hint">Start and Frame generate automatically. Positions are work coords (W0 = blue corner).</p>
       </details>
-      <details class="sec" data-sec="machine" open>
-        <summary>Machine</summary>
-        <div class="bgrid">
-          <button id="homeBtn"><svg class="ic"><use href="#i-home"/></svg>Home</button>
-          <button id="unlockBtn"><svg class="ic"><use href="#i-unlock"/></svg>Unlock</button>
-          <button id="resetBtn" title="Soft reset (Ctrl-X)"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
-          <button id="zeroBtn" title="G10 L20 P1 X0 Y0: current spot becomes work 0,0"><svg class="ic"><use href="#i-zero"/></svg>Set zero here</button>
-          <button id="goZeroBtn"><svg class="ic"><use href="#i-zero"/></svg>Go to zero</button>
-        </div>
-      </details>
-      <details class="sec" data-sec="jog" open>
-        <summary>Jog</summary>
-        <div class="jogwrap">
-          <div class="jog">
-            <button data-j="-1,1" aria-label="Jog up-left">&#8598;</button><button data-j="0,1" aria-label="Jog up">&#9650;</button><button data-j="1,1" aria-label="Jog up-right">&#8599;</button>
-            <button data-j="-1,0" aria-label="Jog left">&#9664;</button><button id="jogCancel" title="Cancel jog" aria-label="Cancel jog">&#9632;</button><button data-j="1,0" aria-label="Jog right">&#9654;</button>
-            <button data-j="-1,-1" aria-label="Jog down-left">&#8601;</button><button data-j="0,-1" aria-label="Jog down">&#9660;</button><button data-j="1,-1" aria-label="Jog down-right">&#8600;</button>
-          </div>
-          <div class="fgrid one">
-            <label for="jogStep">Step <small>in</small></label>
-            <select id="jogStep"><option>0.01</option><option>0.05</option><option selected>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select>
-            <label for="jogFeedS">Feed <small>mm/s</small></label><input id="jogFeedS" type="number" value="40" step="5">
-          </div>
-        </div>
-        <p class="hint">Arrow keys jog. Double-click the bed to rapid there (laser off).</p>
-      </details>
-      <details class="sec" data-sec="frame" open>
-        <summary>Frame</summary>
-        <div class="fgrid one">
-          <label for="frameFeedS">Feed <small>mm/s</small></label><input id="frameFeedS" type="number" value="60" step="5">
-          <label class="chk"><input id="frameLaser" type="checkbox"> Low-power laser, S</label><input id="frameS" type="number" value="10" step="1" title="S value while framing">
-        </div>
-        <p class="hint">Keep frame S too low to mark the work. Goggles on.</p>
-      </details>
-      <details class="sec" data-sec="camera">
-        <summary>Camera</summary>
-        <div class="row"><select id="camSel" class="grow" aria-label="Camera"><option value="">(press Start)</option></select><button id="camOn">Start</button></div>
-        <div class="fgrid one">
-          <label class="chk"><input id="camShow" type="checkbox" checked> Show on the bed</label><span></span>
-          <label for="camOpacity">Opacity</label><input id="camOpacity" type="range" min="0.1" max="1" step="0.05" value="0.6">
-        </div>
-        <div id="camInfo" class="muted"></div>
-        <div class="arr-h">Calibrate (once per camera position)</div>
-        <div class="fgrid one"><label for="camMarkS">Mark power <small>%</small></label><input id="camMarkS" type="number" value="20" step="5" min="1" max="100"><label for="camMarkF">Mark speed <small>mm/s</small></label><input id="camMarkF" type="number" value="20" step="5" min="1"></div>
-        <div class="row tight"><button id="camBurn" class="warnb">1. Burn 4 marks</button><button id="camCal">2. Click the marks</button><button id="camForget" class="danger">Forget</button></div>
-        <p class="hint">Cover the bed with scrap first. Marks go 12% in from each corner and are numbered by ticks: 1 bottom-left, 2 bottom-right, 3 top-right, 4 top-left, as on the map. Then place art on the live picture of your scrap.</p>
-      </details>
-      <details class="sec" data-sec="errors">
-        <summary>Errors</summary>
-        <label class="chk"><input id="haltErr" type="checkbox" checked> Pause the job on a G-code error</label>
-      </details>
-    </div>
 
-    <!-- ===================== CONSOLE ===================== -->
-    <div class="pane" data-pane="console" role="tabpanel">
-      <div id="console"></div>
-      <input id="cmd" placeholder="Send command (Enter). Up/Down = history" autocomplete="off" aria-label="Send G-code command">
+      <details class="sec" data-sec="project">
+        <summary>Project</summary>
+        <div class="row"><input id="projName" class="grow" placeholder="Untitled" aria-label="Project name"><span id="projDirty"></span></div>
+        <div class="row tight"><button id="projNew">New</button><button id="projOpen">Open...</button><button id="projSave" title="Ctrl+S">Save</button><button id="projSaveAs" title="Ctrl+Shift+S">Save as...</button></div>
+        <input id="projFile" type="file" accept=".burner,.json" hidden>
+        <div id="recentList"></div>
+      </details>
+
+      <details class="sec" data-sec="history">
+        <summary>Job history <small id="histMachine"></small></summary>
+        <div id="histList"></div>
+      </details>
     </div>
   </aside>
+  <button id="panelShow" title="Show the CAM panel (P)" aria-label="Show CAM panel"><svg class="ic"><use href="#i-panel"/></svg></button>
 </main>
-
-<footer id="runbar" aria-label="Run">
-  <div class="runbtns">
-    <button id="frameBtn" title="Trace the job outline"><svg class="ic"><use href="#i-frame"/></svg>Frame</button>
-    <button id="startBtn" class="pri"><svg class="ic"><use href="#i-play"/></svg>Start</button>
-    <button id="pauseBtn" class="warnb"><svg class="ic"><use href="#i-pause"/></svg><span>Pause</span></button>
-  </div>
-  <div class="timer"><b id="tLeft">--:--</b><span id="tSub">no job</span></div>
-  <div class="progwrap"><progress id="prog" value="0" max="1"></progress><div id="progTxt">-</div></div>
-  <div class="gauges" aria-hidden="true">
-    <div class="gauge" id="gPower"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="26"/><circle class="arc" cx="32" cy="32" r="26"/><circle class="spin" cx="32" cy="32" r="20"/></svg><b>0</b><small>POWER %</small></div>
-    <div class="gauge" id="gSpeed"><svg viewBox="0 0 64 64"><circle class="trk" cx="32" cy="32" r="26"/><circle class="arc" cx="32" cy="32" r="26"/><circle class="spin" cx="32" cy="32" r="20"/></svg><b>0</b><small>MM/S</small></div>
-  </div>
-  <div class="ovs" title="Keys: [ ] speed, - = power, Space pause">
-    <div class="ov"><b>Speed</b><span id="ovF" class="pos">-</span>
-      <button data-ov="146">-10</button><button data-ov="148">-1</button><button data-ov="144" title="Back to 100%">100</button><button data-ov="147">+1</button><button data-ov="145">+10</button></div>
-    <div class="ov"><b>Power</b><span id="ovS" class="pos">-</span>
-      <button data-pw="-10">-10</button><button data-pw="-1">-1</button><button data-pw="job" title="Back to what the job set">Job</button><button data-pw="1">+1</button><button data-pw="10">+10</button></div>
-    <div class="ov ov3"><b>Rapid</b><span id="ovR" class="pos">-</span>
-      <button data-ov="151">25</button><button data-ov="150">50</button><button data-ov="149">100</button></div>
-    <div id="pwInfo" title="Power is actual % of the laser's max ($30), capped at 100. A tweak lasts until the next operation.">-</div>
-  </div>
-</footer>
 
 <div id="camModal">
   <div class="modal">
@@ -420,6 +367,32 @@
   <div class="modal">
     <h2>Settings <button id="closeSettings" class="icon" aria-label="Close">&#10005;</button></h2>
     <div class="mgrid">
+      <div class="box" style="grid-column:1/-1">
+        <h3>Machine profile</h3>
+        <div class="row"><select id="machSel" class="grow" aria-label="Machine profile"></select><button id="machNew">New</button><button id="machDel" class="danger">Delete</button></div>
+        <div class="grid2">
+          <label for="machName">Name</label><input id="machName">
+          <label for="machAir">Air assist</label><select id="machAir"><option value="M8">M8 (flood output)</option><option value="M7">M7 (mist output)</option><option value="">None</option></select>
+        </div>
+        <div id="machInfo" class="muted"></div>
+        <div class="row"><button id="machCapture" title="Store the controller's current $-settings in this profile">Save from controller</button><button id="machApply" class="warnb" title="Write the profile's saved $-settings that differ">Write saved</button></div>
+        <label class="chk"><input id="autoReconnect" type="checkbox" checked> Reconnect if the USB drops (never restarts a job)</label>
+        <label class="chk"><input id="haltErr" type="checkbox" checked> Pause the job on a G-code error</label>
+        <p class="hint">The profile keeps the bed size and offsets below, plus port and baud.</p>
+      </div>
+      <div class="box" style="grid-column:1/-1">
+        <h3>Camera</h3>
+        <div class="row"><select id="camSel" class="grow" aria-label="Camera"><option value="">(press Start)</option></select><button id="camOn">Start</button></div>
+        <div class="grid2">
+          <label class="chk"><input id="camShow" type="checkbox" checked> Show on the bed</label><span></span>
+          <label for="camOpacity">Opacity</label><input id="camOpacity" type="range" min="0.1" max="1" step="0.05" value="0.6">
+          <label for="camMarkS">Mark power (%)</label><input id="camMarkS" type="number" value="20" step="5" min="1" max="100">
+          <label for="camMarkF">Mark speed (mm/s)</label><input id="camMarkF" type="number" value="20" step="5" min="1">
+        </div>
+        <div id="camInfo" class="muted"></div>
+        <div class="row tight"><button id="camBurn" class="warnb">1. Burn 4 marks</button><button id="camCal">2. Click the marks</button><button id="camForget" class="danger">Forget</button></div>
+        <p class="hint">Cover the bed with scrap first. Marks go 12% in from each corner, numbered by ticks: 1 bottom-left, 2 bottom-right, 3 top-right, 4 top-left.</p>
+      </div>
       <div class="box">
         <h3>Bed</h3>
         <div class="grid2">
@@ -445,8 +418,8 @@
       <div class="box" style="grid-column:1/-1">
         <h3>Controller &amp; look</h3>
         <div class="row"><label>Theme</label><select id="theme"><option value="hud">HUD</option><option value="classic">Classic</option></select>
-          <label>Effects</label><select id="fxLevel" title="Full: 3D, glow, particles, motion. Lite: 3D without glow/particles, still backdrop. Off: plain 2D."><option value="full">Full</option><option value="lite">Lite</option><option value="off">Off</option></select></div>
-        <div class="row"><label class="chk"><input id="fx3dAuto" type="checkbox" checked> Switch to 3D when a job starts</label><label class="chk"><input id="fxSound" type="checkbox"> Sounds</label></div>
+          <label>Effects</label><select id="fxLevel" title="Full: 3D, glow, particles, motion. Lite: 3D without glow/particles, still backdrop. Off: plain 2D."><option value="lite">Simple</option><option value="full">Fancy (glow, sparks)</option><option value="off">Off (2D only)</option></select></div>
+        <div class="row"><label class="chk"><input id="fx3dAuto" type="checkbox"> Switch to 3D when a job starts</label><label class="chk"><input id="fxSound" type="checkbox"> Sounds</label></div>
         <div id="ctlInfo" class="muted">Not connected.</div>
         <div class="row"><button id="settingsBtn">Read $$</button><button id="resyncBtn" title="Clear the sender's buffer count if it ever desyncs">Resync buffer</button></div>
       </div>
@@ -464,8 +437,8 @@
         <h3>Keys</h3>
         <div class="keys">
           <span><kbd>Esc</kbd> STOP</span><span><kbd>Space</kbd> pause / resume</span><span><kbd>[</kbd> <kbd>]</kbd> speed</span><span><kbd>-</kbd> <kbd>=</kbd> power</span>
-          <span><kbd>V</kbd> select</span><span><kbd>H</kbd> pan</span><span><kbd>F</kbd> fit</span><span><kbd>T</kbd> 3D view</span><span><kbd>P</kbd> side panel</span>
-          <span><kbd>1</kbd>-<kbd>4</kbd> panel tabs</span><span><kbd>Ctrl</kbd>+<kbd>O</kbd> add file</span><span><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd><kbd>&darr;</kbd> jog / nudge</span><span><kbd>Del</kbd> delete object</span>
+          <span><kbd>V</kbd> select</span><span><kbd>H</kbd> pan</span><span><kbd>F</kbd> fit</span><span><kbd>T</kbd> 3D view</span><span><kbd>P</kbd> CAM panel</span>
+          <span><kbd>Ctrl</kbd>+<kbd>O</kbd> add file</span><span><kbd>&larr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd><kbd>&darr;</kbd> jog / nudge</span><span><kbd>Del</kbd> delete object</span>
         </div>
       </div>
     </div>

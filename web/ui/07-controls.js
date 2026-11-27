@@ -86,7 +86,7 @@ function updateUI(){
   const idle = connected && !job.running;
   ['homeBtn','unlockBtn','zeroBtn','goZeroBtn','settingsBtn','frameBtn'].forEach(id=>$(id).disabled=!idle);
   if(noHome) $('homeBtn').disabled=true;
-  $('startBtn').disabled = !(idle && sawBanner && job.lines.length && st.state==='Idle');
+  $('startBtn').disabled = !(idle && sawBanner && (job.lines.length || objs.some(o=>o.on)) && st.state==='Idle');
   $('pauseBtn').disabled = !(connected && job.running);
   { const held=job.paused||st.state==='Hold', pb=$('pauseBtn'); (pb.querySelector('span')||pb).textContent = held ? 'Resume' : 'Pause'; const u=pb.querySelector('use'); if(u) u.setAttribute('href', held?'#i-play':'#i-pause'); }
   $('genBtn').disabled = job.running || !!genRunning; $('loadGcBtn').disabled = job.running; $('loadImgBtn').disabled = job.running;
