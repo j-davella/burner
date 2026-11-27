@@ -1,6 +1,6 @@
 # Burner — upgrade plan (2026-11-26)
 
-Status: phases 0-4 (and 3b) done on branch `upgrade`. Next: 5 (design tools).
+Status: phases 0-5 (and 3b) done on branch `upgrade`. Next: 6 (projects & history).
 Note: 3b uses raw WebGL2 (web/fx/fx.js) instead of vendoring three.js: no download, nothing to trust, ~30 KB.
 
 Decisions so far: keep the browser UI + stdlib Python bridge, polish the HUD
@@ -75,8 +75,9 @@ no npm). Everything runs on the GPU, so it adds no lag to the burn.
 ## Phase 5 — Design tools
 - Undo/redo for everything on the bed.
 - Shapes: rect / rounded rect / circle / polygon / star.
-- Text: bundled open fonts + load your own TTF/OTF, plus single-line fonts for
-  scoring.
+- Text: any installed font + load your own TTF/OTF, plus a bundled single-line
+  font for scoring. (Done: outlines traced from the browser's text rendering
+  instead of bundling font files.)
 - Align / distribute, snapping (grid, edges, centers), grid & circular arrays,
   simple sheet nesting.
 

@@ -106,11 +106,21 @@ There's also a Web Serial mode (Chrome, or Firefox 151+ if your policies allow i
 - Frame the job (optionally at low power), save the G-code
 - Test Lab: 10 one-inch test blocks (score, fill, cuts 1/16-3/8", grayscale, dither, power ramp) burned into a slot grid from W0. Each burn is logged; mark good/bad, add notes, save the winner as tuned per material. Tuned values build presets automatically ("Poplar 1/8\"", "Poplar dither"). Printable report + CSV
 
+## Design tools
+
+- **Undo / redo** for everything on the bed (each action, drag or edit is one step).
+- **Create** (Job tab): rectangle, rounded rectangle, circle/ellipse, polygon, star. They stay editable in the Object tab (size, corner radius, points, inner radius).
+- **Text**: outline text in any font installed on your computer, or load your own TTF / OTF / WOFF (outlines are traced from the browser's own text rendering, ~0.03 mm). **Single-line text** is a built-in one-stroke-per-letter font for fast scoring. Text stays editable.
+- **Snapping** while dragging: to other objects' edges and centers, the bed edges/center, work zero and a 1/8 in grid. Pink guides show what it snapped to.
+- **Arrange**: align / space the checked objects, align the selected one to the bed, grid and circular arrays, and **Nest on bed** (packs the checked objects by bounding box, turning parts to lie flat when that fits).
+
 ## Keys
 
 Esc stop · Space pause/resume · `[` `]` speed -/+10% · `-` `=` power -/+10% · arrows jog (or nudge the selected object; Shift = 0.1 in) · Del deletes selected · F fits view
 
 V select tool · H pan tool · T 3D view · P show/hide the side panel · 1-4 panel tabs (Job, Object, Machine, Console) · M machine · ` console · Ctrl+O add a file
+
+Ctrl+Z undo · Ctrl+Shift+Z / Ctrl+Y redo · Ctrl+D duplicate · R add a rectangle · X add text · G snapping on/off (hold Alt while dragging to place freely)
 
 Units in the UI are inches. Machine is driven in mm (`$13=0`).
 
@@ -156,6 +166,7 @@ contour hit tests). A change that alters the G-code shows up here.
 node tests/engine.test.mjs        # engine + worker job path, no browser
 node tests/join.test.mjs          # fast contour joiner == original, incl. 30 random dense layouts
 node tests/resume.test.mjs        # resume-from-line burns the same as the original; air assist output
+node tests/shapes.test.mjs        # shapes, single-line font, contour tracing, arrays, nesting
 python tests/capture_server.py    # serves the repo on :8799 and accepts POST /capture/<name>
 ```
 

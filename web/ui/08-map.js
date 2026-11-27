@@ -101,6 +101,7 @@ function draw(){
   g.setTransform(DPR,0,0,DPR,0,0);
   drawObjs(g);
   if((typeof Resume!=='undefined')) try{ Resume.drawMarker(g); }catch{}
+  if(typeof Design!=='undefined') try{ Design.drawGuides(g); }catch{}
   // work zero
   if(st.known){
     const zx=px(st.wco[0]), zy=py(st.wco[1]);
@@ -187,7 +188,7 @@ window.addEventListener('mousemove', e=>{
   if(!drag) return;
   if(drag.kind==='pan'){ vw.x0=drag.vx-(e.clientX-drag.x)/vw.sc; vw.y0=drag.vy+(e.clientY-drag.y)/vw.sc; viewMoved(); return; }
   const p=evPos(e), o=drag.o;
-  if(drag.kind==='move'){ o.x=drag.x0+(p.wx-drag.p0.wx); o.y=drag.y0+(p.wy-drag.p0.wy); }
+  if(drag.kind==='move'){ o.x=drag.x0+(p.wx-drag.p0.wx); o.y=drag.y0+(p.wy-drag.p0.wy); if(typeof Design!=='undefined') Design.snapMove(o, e.altKey); }
   else if(drag.kind==='rot'){
     let a=Math.atan2(p.wy-o.y,p.wx-o.x)*180/Math.PI-90;
     if(e.shiftKey) a=Math.round(a/15)*15;

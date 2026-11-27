@@ -397,3 +397,21 @@ body.fx-off #hudStrip .fxk{display:none}
 #machInfo{margin:var(--s2) 0;line-height:1.45;font-size:12px}
 #machInfo .bad{color:#ff8a96}
 button.armed{border-color:var(--bad)!important;color:#fff!important;background:rgba(255,59,78,.35)!important}
+
+/* ---------- Phase 5: design tools ---------- */
+.row.mk{flex-wrap:wrap;gap:6px}
+.row.mk button{flex:1 1 auto;min-width:0;padding-left:8px;padding-right:8px}
+.row.tight{flex-wrap:wrap;gap:5px;align-items:center}
+.row.tight button{padding:5px 9px;font-size:12px}
+.arr-h{margin:var(--s3) 0 4px;font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:1px}
+label.inl{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--tx2)}
+label.inl input{width:58px;padding:4px 6px}
+#txStr{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;margin-bottom:var(--s2);font:14px var(--mono);
+  background:var(--bg2);color:var(--tx);border:1px solid var(--ln);border-radius:var(--r2);padding:6px 8px}
+#txStr:focus{outline:none;border-color:var(--acc);box-shadow:var(--focus)}
+#txFont{max-width:100%}
+#rail button:disabled{opacity:.35}
+#rail{min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+#rail::-webkit-scrollbar{display:none}
+#rail button{flex:none}
+@media (max-height:820px){ #rail{gap:3px} #rail button{width:36px;height:32px} #rail .rsep{margin:2px 0} }
