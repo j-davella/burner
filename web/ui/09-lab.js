@@ -211,3 +211,94 @@ $('closeLab').onclick=()=>openLab(false);
 $('labModal').addEventListener('mousedown',e=>{ if(e.target.id==='labModal') openLab(false); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') openLab(false); });
 renderMatProfiles();
+
+// ---------- current material (CAM panel) ----------
+// One name for everything: the Test Lab material. Picking it puts its tuned score / fill / cut
+// on every vector object and its tuned grayscale or dither on every image. New SVG, DXF, shapes,
+// text and images start from it. The Lab and the CAM panel always show the same material.
+// Objects remember what they follow in o.preset / o.rPreset as 'mat:<name>'; editing a number
+// by hand makes them '' (their own values), and a later Lab tune leaves those alone.
+var Material = (()=>{
+  const KEY='burner.material', CKEY='burner.materialCut';
+  let cur='', cutId='';
+  try{ cur=localStorage.getItem(KEY)||''; cutId=localStorage.getItem(CKEY)||''; }catch{}
+  const tuned=n=>(n && lab.materials[n] && lab.materials[n].tuned) || null;
+  const has=n=>{ const t=tuned(n); return !!t && Object.keys(t).length>0; };
+  if(cur && !lab.materials[cur]){ const m=Object.keys(lab.materials).find(n=>cur.startsWith(n+' ')); cur=m||''; }   // old preset-style value
+  const names=()=>Object.keys(lab.materials).filter(has).sort((a,b)=>a.localeCompare(b));
+  const cuts=n=>{ const tu=tuned(n)||{}; return TESTS.filter(t=>t.op==='cut' && tu[t.id]); };
+  const tag=()=>'mat:'+cur;
+  const following=(p,name)=>p===undefined || p===null || p==='mat:'+name;
+
+  function ops(){
+    const tu=tuned(cur); if(!tu) return null;
+    const d=id=>({...T(id).def, ...(tu[id]||{})}), cs=cuts(cur);
+    const c=d(cs.some(t=>t.id===cutId) ? cutId : (cs[0]?cs[0].id:'cut8')), s=d('score'), f=d('fill');
+    return { cut:{power:c.power,feed:c.feed,passes:c.passes}, score:{power:s.power,feed:s.feed,passes:s.passes},
+             fill:{power:f.power,feed:f.feed,passes:f.passes,interval:f.interval} };
+  }
+  // raster settings for an image; base keeps its own dither / invert / overscan choices
+  function raster(base){
+    const tu=tuned(cur); if(!tu || !(tu.gray||tu.dither)) return null;
+    let dith = base ? !!base.rDither : !tu.gray;
+    if(!tu[dith?'dither':'gray']) dith=!dith;                      // only the other mode is tuned: use that one
+    const r=tu[dith?'dither':'gray'];
+    return { ...(base||readRaster()), rLpi:r.lpi, rFeedS:r.feed, rPmin:r.pmin, rPmax:r.pmax, rDither:dith };
+  }
+  function info(){
+    const el=$('matInfo'); if(!el) return;
+    const tu=tuned(cur);
+    if(!tu){ el.textContent = names().length ? 'Built-in starting values.' : 'Built-in starting values. Tune a material in the Test Lab (top right) and it shows up here.'; return; }
+    const p=[]; const v=(id,x)=>x.power+'% '+x.feed+'mm/s'+(x.passes>1?' x'+x.passes:'');
+    if(tu.score) p.push('score '+v('score',tu.score));
+    if(tu.fill) p.push('fill '+v('fill',tu.fill));
+    const cs=cuts(cur), c=cs.find(t=>t.id===cutId)||cs[0]; if(c) p.push('cut '+c.th+' '+v(c.id,tu[c.id]));
+    if(tu.gray) p.push('grayscale '+tu.gray.pmin+'-'+tu.gray.pmax+'% '+tu.gray.feed+'mm/s');
+    if(tu.dither) p.push('dither '+tu.dither.pmin+'-'+tu.dither.pmax+'% '+tu.dither.feed+'mm/s');
+    const miss=['score','fill'].filter(k=>!tu[k]).concat(cs.length?[]:['cut']).concat(tu.gray||tu.dither?[]:['images']);
+    el.textContent = p.join(' · ') + (miss.length ? '. Not tuned (built-in): '+miss.join(', ')+'.' : '');
+  }
+  function fill(){
+    const el=$('matSel'); if(!el) return;
+    if(cur && !lab.materials[cur]) cur='';
+    el.innerHTML='<option value="">Default settings</option>';
+    for(const n of names()){ const o=document.createElement('option'); o.value=n; o.textContent=n; el.appendChild(o); }
+    if(cur && !has(cur)){ const o=document.createElement('option'); o.value=cur; o.textContent=cur+' (nothing tuned yet)'; el.appendChild(o); }
+    el.value=cur;
+    const cs=cuts(cur), cel=$('matCut');
+    cel.innerHTML=cs.map(t=>'<option value="'+t.id+'">Cut '+esc(t.th)+'</option>').join('');
+    cel.style.display = cs.length>1 ? '' : 'none';
+    if(cs.length) cel.value = cs.some(t=>t.id===cutId) ? cutId : cs[0].id;
+    info();
+  }
+  // all=true: every object (picking from the menu). all=false: only objects still following it.
+  function apply(name, all){
+    const prev=cur; cur=name||'';
+    try{ localStorage.setItem(KEY,cur); }catch{}
+    if(cur && lab.current!==cur){ lab.current=cur; try{ localStorage.setItem(LAB_KEY, JSON.stringify(lab)); }catch{} }
+    const v=ops(); let nv=0, ni=0;
+    for(const o of objs){
+      if(o.type==='vec'){
+        if(!all && !following(o.preset, cur) && !following(o.preset, prev)) continue;
+        if(!v && cur) continue;                    // material with nothing tuned for vectors: leave them
+        o.set=JSON.parse(JSON.stringify(v||defaultOps())); o.preset = cur ? tag() : undefined; nv++;
+      } else if(o.type==='img'){
+        if(!all && !following(o.rPreset, cur)) continue;
+        const r=raster(o.r); if(!r) continue;
+        o.r=r; o.rPreset=tag(); ni++;
+      }
+    }
+    fill();
+    if(nv||ni){ layoutChanged(); syncProps(); log('Material '+(cur||'default')+': updated '+[nv?nv+' vector':'',ni?ni+' image':''].filter(Boolean).join(' and ')+' object'+(nv+ni>1?'s':''),'dim'); }
+  }
+  function afterTune(name){ if(!cur || cur===name) apply(name, false); else fill(); }
+  $('matSel').onchange=()=>apply($('matSel').value, true);
+  $('matCut').onchange=()=>{ cutId=$('matCut').value; try{ localStorage.setItem(CKEY,cutId); }catch{} apply(cur, true); };
+  fill();
+  return { ops, raster, fill, apply, afterTune, current:()=>cur, tag:()=>cur?tag():undefined };
+})();
+// The Lab's material box and the CAM material are the same thing.
+// Switching an image between grayscale and dither picks up the material's tuned values for that mode.
+$('rDither').addEventListener('change',()=>{ if(!sel||sel.type!=='img'||!Material.current()) return; const b=readRaster(), r=Material.raster(b); if(!r || r.rDither!==b.rDither) return; writeRaster(r); sel.r=r; sel.rPreset=Material.tag(); layoutChanged(); });
+$('labMat').addEventListener('change',()=>{ const n=lab.current; if(n!==Material.current()) Material.apply(n, true); });
+{ const _open=openLab; openLab=function(o){ if(o && Material.current() && lab.current!==Material.current()){ lab.current=Material.current(); } _open(o); }; }

@@ -509,3 +509,8 @@ body.nopanel #panelShow{display:inline-flex;align-items:center;justify-content:c
 #machPanel .ov .pos{width:36px}
 .sideb>*{flex:none}
 .runstat .progwrap{flex:none}
+#matCut{flex:none;width:auto}
+details.sec>summary small{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint)}
+/* one place for settings: the Material picker. Per-object preset menus are hidden. */
+.row:has(> #rPreset),.row:has(> #rSaveAs),.row:has(> #vPreset),.row:has(> #vSaveAs){display:none}
+#rasterSec .fgrid,#objBox details[data-sec=place] .fgrid,#shapeProps .fgrid,#textProps .fgrid{grid-template-columns:auto minmax(0,1fr)}

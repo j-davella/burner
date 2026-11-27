@@ -194,7 +194,8 @@
     <div class="sideb">
       <div class="matrow">
         <label for="matSel">Material</label>
-        <select id="matSel" class="grow" title="Cut / score / fill settings for every vector object. Tune them in the Test Lab."></select>
+        <select id="matSel" class="grow" title="Tuned settings from the Test Lab, for every object on the bed"></select>
+        <select id="matCut" title="Which tuned cut thickness to use"></select>
       </div>
       <div id="matInfo" class="hint"></div>
 
@@ -221,7 +222,7 @@
           <div id="pathInfo" class="muted"></div>
           <div class="row seg"><button id="pathOuter" title="Contours not inside any other contour">Outer</button><button id="pathInner" title="Contours inside another contour">Inner</button><button id="pathAll">All</button><button id="pathNone">None</button></div>
           <p class="hint">Click a contour to pick it, Shift-click to add. Buttons apply to picked contours, or all if none are picked.</p>
-          <details class="sec" data-sec="ops">
+          <details class="sec" data-sec="ops" open>
             <summary>Power &amp; speed <small id="opsFrom"></small></summary>
             <div class="row"><select id="vPreset" class="grow"></select><button id="vPresetDel" class="icon" title="Delete this preset">Del</button></div>
             <div class="opgrid">
@@ -234,6 +235,25 @@
             <div class="row"><input id="vPresetName" class="grow" placeholder="Save as preset, e.g. 1/8 birch ply"><button id="vSaveAs">Save</button></div>
           </details>
         </div>
+        <details class="sec" data-sec="raster" id="rasterSec" open>
+          <summary id="rasterHdr">Engraving</summary>
+          <div class="row"><select id="rPreset" class="grow"></select><button id="rPresetDel" class="icon" title="Delete this preset">Del</button></div>
+          <div class="fgrid">
+            <label for="rLpi">Lines / in</label><input id="rLpi" type="number" step="1" value="254">
+            <label for="rFeedS">Speed <small>mm/s</small></label><input id="rFeedS" type="number" step="5" value="50">
+            <label for="rPmin">Min power <small>%</small></label><input id="rPmin" type="number" step="1" value="0">
+            <label for="rPmax">Max power <small>%</small></label><input id="rPmax" type="number" step="1" value="60">
+            <label for="rOver">Overscan <small>in</small></label><input id="rOver" type="number" step="0.01" value="0.05">
+            <label for="rThresh">Skip below <small>%</small></label><input id="rThresh" type="number" step="1" value="3">
+          </div>
+          <div class="row chks">
+            <label class="chk"><input id="rDither" type="checkbox"> Dither</label>
+            <label class="chk"><input id="rInvert" type="checkbox"> Invert</label>
+            <label class="chk"><input id="rBidir" type="checkbox" checked> Bidirectional</label>
+            <label class="chk" title="Air assist on while engraving this image"><input id="rAir" type="checkbox"> Air</label>
+          </div>
+          <div class="row"><input id="rPresetName" class="grow" placeholder="Save as preset, e.g. Poplar dithered photo"><button id="rSaveAs">Save</button></div>
+        </details>
         <details class="sec" data-sec="place">
           <summary>Position &amp; size</summary>
           <div class="fgrid">
@@ -282,25 +302,6 @@
         </details>
       </div>
 
-      <details class="sec" data-sec="raster">
-        <summary id="rasterHdr">Image engraving</summary>
-        <div class="row"><select id="rPreset" class="grow"></select><button id="rPresetDel" class="icon" title="Delete this preset">Del</button></div>
-        <div class="fgrid">
-          <label for="rLpi">Lines / in</label><input id="rLpi" type="number" step="1" value="254">
-          <label for="rFeedS">Speed <small>mm/s</small></label><input id="rFeedS" type="number" step="5" value="50">
-          <label for="rPmin">Min power <small>%</small></label><input id="rPmin" type="number" step="1" value="0">
-          <label for="rPmax">Max power <small>%</small></label><input id="rPmax" type="number" step="1" value="60">
-          <label for="rOver">Overscan <small>in</small></label><input id="rOver" type="number" step="0.01" value="0.05">
-          <label for="rThresh">Skip below <small>%</small></label><input id="rThresh" type="number" step="1" value="3">
-        </div>
-        <div class="row chks">
-          <label class="chk"><input id="rDither" type="checkbox"> Dither</label>
-          <label class="chk"><input id="rInvert" type="checkbox"> Invert</label>
-          <label class="chk"><input id="rBidir" type="checkbox" checked> Bidirectional</label>
-          <label class="chk" title="Air assist on while engraving this image"><input id="rAir" type="checkbox"> Air</label>
-        </div>
-        <div class="row"><input id="rPresetName" class="grow" placeholder="Save as preset, e.g. Poplar dithered photo"><button id="rSaveAs">Save</button></div>
-      </details>
 
       <details class="sec" data-sec="output">
         <summary>G-code file</summary>
