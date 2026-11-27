@@ -52,10 +52,14 @@ Two panels, no tabs. STOP is always at the top right.
   list, and the selected object's cut / score / fill and power settings. Image engraving, the
   G-code file, Project and Job history are folded at the bottom. **P** hides this panel.
 
-**Material** sets cut / score / fill power and speed for every vector object at once, and new
-SVG, DXF, shapes and text start from it. Saving a tuned value in the Test Lab picks that material
-and updates the objects on the bed that were following it. Start generates the job itself;
-Generate and Save .nc are only for saving a file.
+**Material** is the Test Lab material: the Lab and the CAM panel always show the same one.
+Picking it puts its tuned score / fill / cut on every vector object and its tuned grayscale or
+dither on every image; new files, shapes and text start from it. If more than one cut thickness
+is tuned, a second menu picks which. Saving a tuned value in the Lab updates the objects that
+follow the material; an object whose numbers you changed by hand keeps them (its heading says
+"edited" instead of "from Poplar"). Select an image and you see only engraving settings; select
+a vector and you see only cut / score / fill. Start generates the job itself; Generate and
+Save .nc are only for saving a file.
 
 Rarely used things live in Settings: machine profiles, camera, effects, theme. HUD and Classic
 themes in Settings.

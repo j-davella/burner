@@ -55,7 +55,7 @@ function addImage(f){
     const im=new Image();
     im.onload=()=>{
       const iw=im.naturalWidth, ih=im.naturalHeight, s=Math.min(3.5*MM, bedRect().w)/iw;
-      addObj({type:'img', img:im, blob:f, name:f.name, iw, ih, cx:0, cy:0, cw:iw, ch:ih, sx:s, sy:s, r:readRaster()});
+      addObj({type:'img', img:im, blob:f, name:f.name, iw, ih, cx:0, cy:0, cw:iw, ch:ih, sx:s, sy:s, r:(typeof Material!=='undefined' && Material.raster()) || readRaster(), rPreset:(typeof Material!=='undefined' && Material.raster()) ? Material.tag() : undefined});
       log('Image '+f.name+' '+iw+'x'+ih+' px added at 3.5 in wide','dim'); res();
     };
     im.onerror=()=>rej(new Error('not a readable image'));
@@ -139,8 +139,8 @@ function renderObjList(){
 }
 function syncProps(){
   renderObjList();
-  $('rasterHdr').textContent = sel&&sel.type==='img' ? 'Image engraving: this image' : 'Image engraving: new images';
-  if(sel&&sel.type==='img'&&sel.r){ writeRaster(sel.r); fillPresetSel('rPreset','raster',sel.rPreset||''); }
+  $('rasterSec').style.display = sel&&sel.type==='img' ? '' : 'none';          // image OR vector settings, never both
+  if(sel&&sel.type==='img'&&sel.r){ writeRaster(sel.r); fillPresetSel('rPreset','raster',sel.rPreset||''); $('rasterHdr').textContent='Engraving '+(sel.rPreset===undefined?'(default)':sel.rPreset.startsWith('mat:')?'(from '+sel.rPreset.slice(4)+')':sel.rPreset?'(preset '+sel.rPreset+')':'(edited)'); }
   $('objNone').style.display = sel?'none':''; $('objBox').style.display = sel?'':'none';
   if(!sel) return;
   const set=(id,v)=>{ if(document.activeElement!==$(id)) $(id).value=v; };
@@ -158,6 +158,7 @@ function syncProps(){
     const cnt={cut:0,score:0,fill:0,off:0}; sel.pathOp.forEach(o=>cnt[o]++);
     $('pathInfo').innerHTML = '<b style="color:var(--tx)">'+sel.psel.size+'</b> of '+sel.polys.length+' contours picked &middot; <span style="color:#ff5a6a">cut '+cnt.cut+'</span> &middot; <span style="color:#3ce0ff">score '+cnt.score+'</span> &middot; <span style="color:#2ee59d">fill '+cnt.fill+'</span> &middot; off '+cnt.off;
     fillPresetSel('vPreset','vector', sel.preset||'');
+    $('opsFrom').textContent = sel.preset===undefined ? '(default)' : sel.preset.startsWith('mat:') ? '(from '+sel.preset.slice(4)+')' : sel.preset ? '(preset '+sel.preset+')' : '(edited)';
   }
 }
 const numIn=(id,fn)=>$(id).addEventListener('change',()=>{ const v=parseFloat($(id).value); if(sel && isFinite(v)){ fn(v); layoutChanged(); } });
